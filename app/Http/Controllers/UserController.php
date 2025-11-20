@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 use Spatie\Permission\Models\Role;
+use Spatie\Permission\Models\Permission;
 
 class UserController extends Controller
 {
@@ -74,6 +75,36 @@ class UserController extends Controller
 
         return Inertia::render('users/show', [
             'user' => $user->load('roles', 'permissions'),
+        ]);
+    }
+
+    /**
+     * Show the form for assigning roles and permissions to a user.
+     */
+    public function assignRolesPermissions(User $user): Response
+    {
+        $this->authorize('users.assign_roles');
+
+        // Get all roles with their permissions
+        $allRoles = Role::with('permissions')->get(['id', 'name']);
+        
+        // Get all permissions grouped by category
+        $allPermissions = Permission::all(['id', 'name'])
+            ->groupBy(function ($permission) {
+                // Extract category from permission name (e.g., "users.view" -> "users")
+                return explode('.', $permission->name)[0];
+            })
+            ->map(function ($group) {
+                return $group->values();
+            });
+
+        // Get user's current roles and permissions
+        $user->load('roles.permissions', 'permissions');
+
+        return Inertia::render('users/assign', [
+            'user' => $user,
+            'allRoles' => $allRoles,
+            'allPermissions' => $allPermissions,
         ]);
     }
 
@@ -200,6 +231,22 @@ class UserController extends Controller
         $user->givePermissionTo($validated['permission']);
 
         return back()->with('success', 'Permission assigned successfully.');
+    }
+
+    /**
+     * Revoke a direct permission from the specified user.
+     */
+    public function revokePermission(Request $request, User $user): RedirectResponse
+    {
+        $this->authorize('users.assign_permissions');
+
+        $validated = $request->validate([
+            'permission' => ['required', 'string', 'exists:permissions,name'],
+        ]);
+
+        $user->revokePermissionTo($validated['permission']);
+
+        return back()->with('success', 'Permission revoked successfully.');
     }
 
     /**

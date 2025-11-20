@@ -17,13 +17,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
     })->name('dashboard');
 
     // User Management Routes
-    Route::resource('users', UserController::class);
+    // Custom routes before resource routes
+    Route::get('users/{user}/assign-roles-permissions', [UserController::class, 'assignRolesPermissions'])->name('users.assign-roles-permissions');
     Route::post('users/{user}/assign-role', [UserController::class, 'assignRole'])->name('users.assign-role');
     Route::post('users/{user}/revoke-role', [UserController::class, 'revokeRole'])->name('users.revoke-role');
     Route::post('users/{user}/assign-permission', [UserController::class, 'assignPermission'])->name('users.assign-permission');
+    Route::post('users/{user}/revoke-permission', [UserController::class, 'revokePermission'])->name('users.revoke-permission');
     Route::post('users/{id}/restore', [UserController::class, 'restore'])->name('users.restore');
     Route::delete('users/{id}/force-delete', [UserController::class, 'forceDelete'])->name('users.force-delete');
     Route::get('users/export', [UserController::class, 'export'])->name('users.export');
+    
+    // Resource routes
+    Route::resource('users', UserController::class);
 });
 
 require __DIR__.'/settings.php';
