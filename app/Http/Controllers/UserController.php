@@ -87,7 +87,7 @@ class UserController extends Controller
 
         // Get all roles with their permissions
         $allRoles = Role::with('permissions')->get(['id', 'name']);
-        
+
         // Get all permissions grouped by category
         $allPermissions = Permission::all(['id', 'name'])
             ->groupBy(function ($permission) {
@@ -257,7 +257,7 @@ class UserController extends Controller
         $this->authorize('users.export');
 
         // Export logic will be implemented when needed
-        
+
         return back()->with('info', 'Export functionality coming soon.');
     }
 }

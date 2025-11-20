@@ -8,12 +8,12 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { 
-    assignRole, 
-    revokeRole, 
-    assignPermission, 
+import {
+    assignRole,
+    revokeRole,
+    assignPermission,
     revokePermission,
-    show as showUser 
+    show as showUser
 } from '@/routes/users';
 import { Shield, UserCog, Award, Lock, Plus, Trash2, Search } from 'lucide-react';
 import { useState } from 'react';
@@ -187,14 +187,14 @@ export default function Assign({ user, allRoles, allPermissions }: Readonly<Assi
 
     // Get user's direct permission names
     const userDirectPermissions = new Set(user.permissions.map(p => p.name));
-    
+
     // Get all permissions from user's roles
     const userRolePermissions = new Set(
         user.roles.flatMap(role => role.permissions.map(p => p.name))
     );
 
     const hasPermission = (permissionName: string) => {
-        return userDirectPermissions.has(permissionName) || 
+        return userDirectPermissions.has(permissionName) ||
                userRolePermissions.has(permissionName);
     };
 
@@ -389,10 +389,10 @@ export default function Assign({ user, allRoles, allPermissions }: Readonly<Assi
                     <CardHeader>
                         <CardTitle>All Permissions Overview</CardTitle>
                         <CardDescription>
-                            View all available permissions grouped by category. Green badges indicate active permissions 
+                            View all available permissions grouped by category. Green badges indicate active permissions
                             (either from roles or assigned directly). Click to select multiple for bulk operations.
                         </CardDescription>
-                        
+
                         {/* Search Bar */}
                         <div className="relative mt-4">
                             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -411,17 +411,17 @@ export default function Assign({ user, allRoles, allPermissions }: Readonly<Assi
                                     <Plus className="h-4 w-4 mr-2" />
                                     Assign Selected ({selectedPermissions.length})
                                 </Button>
-                                <Button 
-                                    onClick={handleBulkRevokePermissions} 
-                                    size="sm" 
+                                <Button
+                                    onClick={handleBulkRevokePermissions}
+                                    size="sm"
                                     variant="destructive"
                                 >
                                     <Trash2 className="h-4 w-4 mr-2" />
                                     Revoke Selected ({selectedPermissions.length})
                                 </Button>
-                                <Button 
-                                    onClick={() => setSelectedPermissions([])} 
-                                    size="sm" 
+                                <Button
+                                    onClick={() => setSelectedPermissions([])}
+                                    size="sm"
                                     variant="outline"
                                 >
                                     Clear Selection
