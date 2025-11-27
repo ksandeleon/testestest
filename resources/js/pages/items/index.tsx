@@ -115,20 +115,20 @@ const conditionColors: Record<string, 'default' | 'secondary' | 'destructive' | 
 
 export default function Index({ items, categories, locations, filters }: Props) {
     const [search, setSearch] = useState(filters.search || '');
-    const [categoryFilter, setCategoryFilter] = useState(filters.category || '');
-    const [locationFilter, setLocationFilter] = useState(filters.location || '');
-    const [statusFilter, setStatusFilter] = useState(filters.status || '');
-    const [conditionFilter, setConditionFilter] = useState(filters.condition || '');
+    const [categoryFilter, setCategoryFilter] = useState(filters.category || 'all');
+    const [locationFilter, setLocationFilter] = useState(filters.location || 'all');
+    const [statusFilter, setStatusFilter] = useState(filters.status || 'all');
+    const [conditionFilter, setConditionFilter] = useState(filters.condition || 'all');
 
     const handleFilter = () => {
         router.get(
             '/items',
             {
                 search: search || undefined,
-                category: categoryFilter || undefined,
-                location: locationFilter || undefined,
-                status: statusFilter || undefined,
-                condition: conditionFilter || undefined,
+                category: categoryFilter !== 'all' ? categoryFilter : undefined,
+                location: locationFilter !== 'all' ? locationFilter : undefined,
+                status: statusFilter !== 'all' ? statusFilter : undefined,
+                condition: conditionFilter !== 'all' ? conditionFilter : undefined,
             },
             { preserveState: true }
         );
@@ -136,10 +136,10 @@ export default function Index({ items, categories, locations, filters }: Props) 
 
     const handleReset = () => {
         setSearch('');
-        setCategoryFilter('');
-        setLocationFilter('');
-        setStatusFilter('');
-        setConditionFilter('');
+        setCategoryFilter('all');
+        setLocationFilter('all');
+        setStatusFilter('all');
+        setConditionFilter('all');
         router.get('/items');
     };
 
@@ -186,12 +186,12 @@ export default function Index({ items, categories, locations, filters }: Props) 
                             />
                         </div>
                     </div>
-                    <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                    <Select value={categoryFilter || 'all'} onValueChange={(value) => setCategoryFilter(value === 'all' ? '' : value)}>
                         <SelectTrigger>
                             <SelectValue placeholder="All Categories" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="">All Categories</SelectItem>
+                            <SelectItem value="all">All Categories</SelectItem>
                             {categories.map((category) => (
                                 <SelectItem key={category.id} value={category.id.toString()}>
                                     {category.name}
@@ -199,12 +199,12 @@ export default function Index({ items, categories, locations, filters }: Props) 
                             ))}
                         </SelectContent>
                     </Select>
-                    <Select value={locationFilter} onValueChange={setLocationFilter}>
+                    <Select value={locationFilter || 'all'} onValueChange={(value) => setLocationFilter(value === 'all' ? '' : value)}>
                         <SelectTrigger>
                             <SelectValue placeholder="All Locations" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="">All Locations</SelectItem>
+                            <SelectItem value="all">All Locations</SelectItem>
                             {locations.map((location) => (
                                 <SelectItem key={location.id} value={location.id.toString()}>
                                     {location.name}
@@ -212,12 +212,12 @@ export default function Index({ items, categories, locations, filters }: Props) 
                             ))}
                         </SelectContent>
                     </Select>
-                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <Select value={statusFilter || 'all'} onValueChange={(value) => setStatusFilter(value === 'all' ? '' : value)}>
                         <SelectTrigger>
                             <SelectValue placeholder="All Status" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="">All Status</SelectItem>
+                            <SelectItem value="all">All Status</SelectItem>
                             <SelectItem value="available">Available</SelectItem>
                             <SelectItem value="assigned">Assigned</SelectItem>
                             <SelectItem value="in_use">In Use</SelectItem>
@@ -262,9 +262,21 @@ export default function Index({ items, categories, locations, filters }: Props) 
                                 <TableRow>
                                     <TableCell
                                         colSpan={8}
-                                        className="text-center"
+                                        className="text-center py-12"
                                     >
-                                        No items found
+                                        <div className="flex flex-col items-center gap-2">
+                                            <PackagePlus className="h-12 w-12 text-muted-foreground/50" />
+                                            <p className="text-lg font-medium">No items yet!</p>
+                                            <p className="text-sm text-muted-foreground">
+                                                Get started by adding your first item to the inventory
+                                            </p>
+                                            <Link href="/items/create" className="mt-2">
+                                                <Button>
+                                                    <PackagePlus className="mr-2 h-4 w-4" />
+                                                    Add Your First Item
+                                                </Button>
+                                            </Link>
+                                        </div>
                                     </TableCell>
                                 </TableRow>
                             ) : (

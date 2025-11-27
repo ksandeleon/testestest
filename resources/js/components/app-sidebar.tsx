@@ -11,10 +11,11 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
-import { index as usersIndex } from '@/routes/users';
+import { index as usersIndex, create as usersCreate } from '@/routes/users';
+import { index as itemsIndex, create as itemsCreate } from '@/routes/items';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
-import { BookOpen, Folder, LayoutGrid, Package, Users } from 'lucide-react';
+import { BookOpen, Folder, LayoutGrid, Package, Users, UserPlus, PackagePlus, List } from 'lucide-react';
 import AppLogo from './app-logo';
 
 const mainNavItems: NavItem[] = [
@@ -24,14 +25,38 @@ const mainNavItems: NavItem[] = [
         icon: LayoutGrid,
     },
     {
-        title: 'Users',
-        href: usersIndex(),
+        title: 'User Management',
+        href: '#',
         icon: Users,
+        items: [
+            {
+                title: 'All Users',
+                href: usersIndex(),
+                icon: List,
+            },
+            {
+                title: 'Add User',
+                href: usersCreate(),
+                icon: UserPlus,
+            },
+        ],
     },
     {
-        title: 'Items',
-        href: '/items',
+        title: 'Item Management',
+        href: '#',
         icon: Package,
+        items: [
+            {
+                title: 'All Items',
+                href: itemsIndex(),
+                icon: List,
+            },
+            {
+                title: 'Add Item',
+                href: itemsCreate(),
+                icon: PackagePlus,
+            },
+        ],
     },
 ];
 
