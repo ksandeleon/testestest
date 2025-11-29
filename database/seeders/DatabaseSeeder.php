@@ -33,5 +33,11 @@ class DatabaseSeeder extends Seeder
 
         // Assign superadmin role to test user
         $user->assignRole('superadmin');
+
+        // Seed items after users, categories, and locations exist
+        $this->call([
+            ItemSeeder::class,
+            MaintenanceSeeder::class,
+        ]);
     }
 }

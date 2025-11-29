@@ -30,5 +30,12 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->respond(function ($response, $exception, $request) {
+            // Handle 403 Forbidden errors with custom page
+            if ($response->status() === 403) {
+                return back()->with('error', 'You do not have permission to access this resource.');
+            }
+            
+            return $response;
+        });
     })->create();

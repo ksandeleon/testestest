@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Item extends Model
@@ -119,6 +121,32 @@ class Item extends Model
     }
 
     /**
+     * Get all maintenance records for this item.
+     */
+    public function maintenances(): HasMany
+    {
+        return $this->hasMany(Maintenance::class);
+    }
+
+    /**
+     * Get the latest maintenance record for this item.
+     */
+    public function latestMaintenance(): HasOne
+    {
+        return $this->hasOne(Maintenance::class)->latestOfMany();
+    }
+
+    /**
+     * Get active (non-completed) maintenance for this item.
+     */
+    public function activeMaintenance(): HasOne
+    {
+        return $this->hasOne(Maintenance::class)
+            ->whereIn('status', ['pending', 'scheduled', 'in_progress'])
+            ->latestOfMany();
+    }
+
+    /**
      * Scope a query to only include available items.
      */
     public function scopeAvailable($query)
@@ -148,6 +176,14 @@ class Item extends Model
     public function scopeCondition($query, string $condition)
     {
         return $query->where('condition', $condition);
+    }
+
+    /**
+     * Scope a query to only include items in maintenance.
+     */
+    public function scopeInMaintenance($query)
+    {
+        return $query->where('status', 'in_maintenance');
     }
 
     /**

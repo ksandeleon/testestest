@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ItemController;
+use App\Http\Controllers\MaintenanceController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -46,6 +47,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Resource routes
     Route::resource('items', ItemController::class);
+
+    // Maintenance Routes
+    // Custom routes before resource routes
+    Route::get('maintenance/calendar', [MaintenanceController::class, 'calendar'])->name('maintenance.calendar');
+    Route::post('maintenance/{maintenance}/schedule', [MaintenanceController::class, 'schedule'])->name('maintenance.schedule');
+    Route::post('maintenance/{maintenance}/start', [MaintenanceController::class, 'start'])->name('maintenance.start');
+    Route::post('maintenance/{maintenance}/complete', [MaintenanceController::class, 'complete'])->name('maintenance.complete');
+    Route::post('maintenance/{maintenance}/assign', [MaintenanceController::class, 'assign'])->name('maintenance.assign');
+    Route::post('maintenance/{maintenance}/approve-cost', [MaintenanceController::class, 'approveCost'])->name('maintenance.approve-cost');
+    Route::get('maintenance/export', [MaintenanceController::class, 'export'])->name('maintenance.export');
+
+    // Resource routes
+    Route::resource('maintenance', MaintenanceController::class);
 });
 
 require __DIR__.'/settings.php';
