@@ -19,6 +19,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // User Management Routes
     // Custom routes before resource routes
+    Route::get('users/trash', [UserController::class, 'trash'])->name('users.trash');
     Route::get('users/{user}/assign-roles-permissions', [UserController::class, 'assignRolesPermissions'])->name('users.assign-roles-permissions');
     Route::post('users/{user}/assign-role', [UserController::class, 'assignRole'])->name('users.assign-role');
     Route::post('users/{user}/revoke-role', [UserController::class, 'revokeRole'])->name('users.revoke-role');
@@ -42,7 +43,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('items/{id}/force-delete', [ItemController::class, 'forceDelete'])->name('items.force-delete');
     Route::get('items/export', [ItemController::class, 'export'])->name('items.export');
     Route::post('items/import', [ItemController::class, 'import'])->name('items.import');
-    
+
     // Resource routes
     Route::resource('items', ItemController::class);
 });

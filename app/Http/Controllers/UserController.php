@@ -167,8 +167,7 @@ class UserController extends Controller
         $user = User::withTrashed()->findOrFail($id);
         $user->restore();
 
-        return redirect()->route('users.index')
-            ->with('success', 'User restored successfully.');
+        return back()->with('success', 'User restored successfully.');
     }
 
     /**
@@ -181,8 +180,7 @@ class UserController extends Controller
         $user = User::withTrashed()->findOrFail($id);
         $user->forceDelete();
 
-        return redirect()->route('users.index')
-            ->with('success', 'User permanently deleted.');
+        return back()->with('success', 'User permanently deleted.');
     }
 
     /**
@@ -247,6 +245,23 @@ class UserController extends Controller
         $user->revokePermissionTo($validated['permission']);
 
         return back()->with('success', 'Permission revoked successfully.');
+    }
+
+    /**
+     * Display a listing of soft-deleted users.
+     */
+    public function trash(): Response
+    {
+        $this->authorize('users.view_any');
+
+        $users = User::onlyTrashed()
+            ->with('roles')
+            ->latest('deleted_at')
+            ->paginate(15);
+
+        return Inertia::render('users/trash', [
+            'users' => $users,
+        ]);
     }
 
     /**

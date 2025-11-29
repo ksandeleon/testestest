@@ -1,6 +1,6 @@
 import AppLayout from '@/layouts/app-layout';
 import { index as usersIndex } from '@/routes/users';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import {
     Table,
@@ -20,7 +20,8 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, UserPlus } from 'lucide-react';
+import { MoreHorizontal, UserPlus, Trash2 } from 'lucide-react';
+import { useEffect } from 'react';
 
 interface Role {
     id: number;
@@ -56,6 +57,11 @@ interface Props {
 }
 
 export default function Index({ users }: Props) {
+    // Reload data when component mounts to ensure fresh data
+    useEffect(() => {
+        router.reload({ only: ['users'] });
+    }, []);
+
     return (
         <AppLayout
             breadcrumbs={[
@@ -77,12 +83,20 @@ export default function Index({ users }: Props) {
                             Manage user accounts and permissions
                         </p>
                     </div>
-                    <Link href="/users/create">
-                        <Button>
-                            <UserPlus className="mr-2 h-4 w-4" />
-                            Create User
-                        </Button>
-                    </Link>
+                    <div className="flex gap-2">
+                        <Link href="/users/trash">
+                            <Button variant="outline">
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Deleted Users
+                            </Button>
+                        </Link>
+                        <Link href="/users/create">
+                            <Button>
+                                <UserPlus className="mr-2 h-4 w-4" />
+                                Create User
+                            </Button>
+                        </Link>
+                    </div>
                 </div>
 
                 <div className="rounded-md border">

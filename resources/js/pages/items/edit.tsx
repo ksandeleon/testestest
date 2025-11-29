@@ -404,14 +404,14 @@ export default function Edit({ item, categories, locations, users }: Props) {
                             <div className="space-y-2">
                                 <Label htmlFor="accountable_person_id">Accountable Person</Label>
                                 <Select
-                                    value={data.accountable_person_id}
-                                    onValueChange={(value) => setData('accountable_person_id', value)}
+                                    value={data.accountable_person_id || 'none'}
+                                    onValueChange={(value) => setData('accountable_person_id', value === 'none' ? '' : value)}
                                 >
                                     <SelectTrigger>
                                         <SelectValue placeholder="Select person (optional)" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="">None</SelectItem>
+                                        <SelectItem value="none">None</SelectItem>
                                         {users.map((user) => (
                                             <SelectItem key={user.id} value={user.id.toString()}>
                                                 {user.name} ({user.email})
