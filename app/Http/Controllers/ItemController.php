@@ -24,6 +24,13 @@ class ItemController extends Controller
      */
     public function index(Request $request): Response
     {
+        $user = Auth::user();
+
+        // Staff users can only view their assigned items
+        if ($user->hasRole('staff')) {
+            return $this->staffItemsView($request);
+        }
+
         $this->authorize('items.view_any');
 
         $query = Item::with(['category', 'location', 'accountablePerson'])
@@ -418,5 +425,38 @@ class ItemController extends Controller
         // Import logic will be implemented when needed (CSV, Excel)
 
         return back()->with('info', 'Import functionality coming soon.');
+    }
+
+    /**
+     * Staff-specific view of their assigned items.
+     */
+    private function staffItemsView(Request $request): Response
+    {
+        $user = Auth::user();
+
+        $query = $user->assignedItems()
+            ->with(['category', 'location', 'currentAssignment']);
+
+        // Search
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%")
+                    ->orWhere('property_number', 'like', "%{$search}%");
+            });
+        }
+
+        $items = $query->paginate(15)->withQueryString();
+
+        $categories = Category::orderBy('name')->get(['id', 'name']);
+        $locations = Location::orderBy('name')->get(['id', 'name']);
+
+        return Inertia::render('items/my-items', [
+            'items' => $items,
+            'categories' => $categories,
+            'locations' => $locations,
+            'filters' => $request->only(['search']),
+        ]);
     }
 }

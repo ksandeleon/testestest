@@ -8,10 +8,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class Item extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, LogsActivity;
 
     /**
      * The attributes that are mass assignable.
@@ -126,6 +128,32 @@ class Item extends Model
     public function maintenances(): HasMany
     {
         return $this->hasMany(Maintenance::class);
+    }
+
+    /**
+     * Get all assignments for this item.
+     */
+    public function assignments(): HasMany
+    {
+        return $this->hasMany(Assignment::class);
+    }
+
+    /**
+     * Get the current active assignment for this item.
+     */
+    public function currentAssignment(): HasOne
+    {
+        return $this->hasOne(Assignment::class)
+            ->where('status', Assignment::STATUS_ACTIVE)
+            ->latestOfMany();
+    }
+
+    /**
+     * Get the user who currently has this item assigned.
+     */
+    public function currentUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'currentAssignment.user_id');
     }
 
     /**
@@ -246,5 +274,32 @@ class Item extends Model
             'poor', 'for_repair', 'unserviceable' => 'destructive',
             default => 'secondary',
         };
+    }
+
+    /**
+     * Check if item is currently assigned.
+     */
+    public function isAssigned(): bool
+    {
+        return $this->currentAssignment()->exists();
+    }
+
+    /**
+     * Activity log configuration.
+     */
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly([
+                'name',
+                'status',
+                'condition',
+                'location_id',
+                'accountable_person_id',
+                'acquisition_cost',
+            ])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->setDescriptionForEvent(fn(string $eventName) => "Item {$eventName}");
     }
 }

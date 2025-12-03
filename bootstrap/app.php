@@ -35,7 +35,7 @@ return Application::configure(basePath: dirname(__DIR__))
             if ($response->status() === 403) {
                 return back()->with('error', 'You do not have permission to access this resource.');
             }
-            
+
             return $response;
         });
     })->create();

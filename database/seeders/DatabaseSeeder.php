@@ -38,6 +38,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             ItemSeeder::class,
             MaintenanceSeeder::class,
+            AssignmentSeeder::class,
         ]);
     }
 }

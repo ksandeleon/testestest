@@ -1,7 +1,9 @@
 <?php
 
+use App\Http\Controllers\AssignmentController;
 use App\Http\Controllers\ItemController;
 use App\Http\Controllers\MaintenanceController;
+use App\Http\Controllers\ReturnController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -55,11 +57,35 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('maintenance/{maintenance}/start', [MaintenanceController::class, 'start'])->name('maintenance.start');
     Route::post('maintenance/{maintenance}/complete', [MaintenanceController::class, 'complete'])->name('maintenance.complete');
     Route::post('maintenance/{maintenance}/assign', [MaintenanceController::class, 'assign'])->name('maintenance.assign');
-    Route::post('maintenance/{maintenance}/approve-cost', [MaintenanceController::class, 'approveCost'])->name('maintenance.approve-cost');
+    Route::post('`maintenance/{maintenance}/approve-cost', [MaintenanceController::class, 'approveCost'])->name('maintenance.approve-cost');
     Route::get('maintenance/export', [MaintenanceController::class, 'export'])->name('maintenance.export');
 
     // Resource routes
     Route::resource('maintenance', MaintenanceController::class);
+
+    // Assignment Routes
+    Route::get('assignments/my-assignments', [AssignmentController::class, 'myAssignments'])->name('assignments.my-assignments');
+    Route::get('assignments/overdue', [AssignmentController::class, 'overdue'])->name('assignments.overdue');
+    Route::post('assignments/bulk-assign', [AssignmentController::class, 'bulkAssign'])->name('assignments.bulk-assign');
+    Route::post('assignments/{assignment}/cancel', [AssignmentController::class, 'cancel'])->name('assignments.cancel');
+    Route::post('assignments/{assignment}/approve', [AssignmentController::class, 'approve'])->name('assignments.approve');
+    Route::post('assignments/{assignment}/reject', [AssignmentController::class, 'reject'])->name('assignments.reject');
+    Route::get('assignments/export', [AssignmentController::class, 'export'])->name('assignments.export');
+    Route::resource('assignments', AssignmentController::class);
+
+    // Return Routes
+    Route::get('returns/my-returns', [ReturnController::class, 'myReturns'])->name('returns.my-returns');
+    Route::get('returns/pending-inspections', [ReturnController::class, 'pendingInspections'])->name('returns.pending-inspections');
+    Route::get('returns/damaged', [ReturnController::class, 'damaged'])->name('returns.damaged');
+    Route::get('returns/late', [ReturnController::class, 'late'])->name('returns.late');
+    Route::get('returns/{return}/inspect', [ReturnController::class, 'inspect'])->name('returns.inspect');
+    Route::post('returns/{return}/process-inspection', [ReturnController::class, 'processInspection'])->name('returns.process-inspection');
+    Route::post('returns/{return}/approve', [ReturnController::class, 'approve'])->name('returns.approve');
+    Route::post('returns/{return}/reject', [ReturnController::class, 'reject'])->name('returns.reject');
+    Route::post('returns/{return}/calculate-penalty', [ReturnController::class, 'calculatePenalty'])->name('returns.calculate-penalty');
+    Route::post('returns/{return}/mark-penalty-paid', [ReturnController::class, 'markPenaltyPaid'])->name('returns.mark-penalty-paid');
+    Route::post('assignments/{assignment}/quick-return', [ReturnController::class, 'quickReturn'])->name('returns.quick-return');
+    Route::resource('returns', ReturnController::class);
 });
 
 require __DIR__.'/settings.php';
