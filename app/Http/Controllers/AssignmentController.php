@@ -70,10 +70,11 @@ class AssignmentController extends Controller
 
         $user = auth()->user();
 
-        $assignments = Assignment::with(['item', 'assignedBy'])
+        $assignments = Assignment::with(['item.category', 'item.location', 'assignedBy'])
             ->where('user_id', $user->id)
+            ->whereIn('status', [Assignment::STATUS_PENDING, Assignment::STATUS_APPROVED, Assignment::STATUS_ACTIVE])
             ->latest()
-            ->paginate(15);
+            ->get();
 
         $stats = $this->assignmentService->getUserAssignmentStats($user->id);
 
@@ -90,16 +91,22 @@ class AssignmentController extends Controller
     {
         $this->authorize('assignments.create');
 
-        // Get available items (not currently assigned)
-        $availableItems = Item::whereDoesntHave('assignments', function ($query) {
-            $query->where('status', Assignment::STATUS_ACTIVE);
-        })->get(['id', 'name', 'property_number', 'status']);
+        $authUser = auth()->user();
+        if (!$authUser) {
+            abort(401);
+        }
 
-        $users = User::where('id', '!=', auth()->id())
+        // Get available items (not currently assigned)
+        $items = Item::with(['category', 'location'])
+            ->whereDoesntHave('currentAssignment')
+            ->where('status', 'available')
+            ->get();
+
+        $users = User::where('id', '!=', $authUser->id)
             ->get(['id', 'name', 'email']);
 
         return Inertia::render('assignments/create', [
-            'availableItems' => $availableItems,
+            'items' => $items,
             'users' => $users,
         ]);
     }
@@ -111,6 +118,11 @@ class AssignmentController extends Controller
     {
         $this->authorize('assignments.create');
 
+        $authUser = auth()->user();
+        if (!$authUser) {
+            abort(401);
+        }
+
         $validated = $request->validate([
             'item_id' => ['required', 'exists:items,id'],
             'user_id' => ['required', 'exists:users,id'],
@@ -119,13 +131,13 @@ class AssignmentController extends Controller
             'purpose' => ['nullable', 'string', 'max:1000'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'admin_notes' => ['nullable', 'string', 'max:2000'],
-            'condition_on_assignment' => ['nullable', 'in:good,fair,poor'],
+            'condition_on_assignment' => ['nullable', 'in:good,fair,poor,excellent'],
         ]);
 
         try {
             $assignment = $this->assignmentService->createAssignment([
                 ...$validated,
-                'assigned_by' => auth()->id(),
+                'assigned_by' => $authUser->id,
             ]);
 
             return redirect()->route('assignments.show', $assignment)
@@ -254,6 +266,11 @@ class AssignmentController extends Controller
     {
         $this->authorize('assignments.create');
 
+        $authUser = auth()->user();
+        if (!$authUser) {
+            abort(401);
+        }
+
         $validated = $request->validate([
             'item_ids' => ['required', 'array'],
             'item_ids.*' => ['exists:items,id'],
@@ -266,7 +283,7 @@ class AssignmentController extends Controller
         $assignments = $this->assignmentService->bulkAssign(
             $validated['item_ids'],
             $validated['user_id'],
-            auth()->id(),
+            $authUser->id,
             [
                 'assigned_date' => $validated['assigned_date'],
                 'due_date' => $validated['due_date'] ?? null,

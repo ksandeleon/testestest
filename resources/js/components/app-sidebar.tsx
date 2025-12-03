@@ -14,9 +14,11 @@ import { dashboard } from '@/routes';
 import { index as usersIndex, create as usersCreate, trash as usersTrash } from '@/routes/users';
 import { index as itemsIndex, create as itemsCreate } from '@/routes/items';
 import { index as maintenanceIndex, create as maintenanceCreate, calendar as maintenanceCalendar } from '@/routes/maintenance';
+import { index as assignmentsIndex, create as assignmentsCreate, myAssignments, overdue as assignmentsOverdue } from '@/routes/assignments';
+import { index as returnsIndex, create as returnsCreate, pendingInspections, damaged as returnsDamaged, late as returnsLate } from '@/routes/returns';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
-import { BookOpen, Folder, LayoutGrid, Package, Users, UserPlus, PackagePlus, List, Trash2, Wrench, Plus, Calendar } from 'lucide-react';
+import { BookOpen, Folder, LayoutGrid, Package, Users, UserPlus, PackagePlus, List, Trash2, Wrench, Plus, Calendar, UserCheck, PackageOpen, ClipboardCheck, AlertTriangle, Clock, ClipboardList } from 'lucide-react';
 import AppLogo from './app-logo';
 import { usePermissions } from '@/hooks/use-permissions';
 
@@ -68,6 +70,35 @@ export function AppSidebar() {
                     title: 'Add Item',
                     href: itemsCreate(),
                     icon: PackagePlus,
+                }] : []),
+            ],
+        }] : []),
+        // Item Assignment - show if user has ANY assignment or return permission
+        ...(hasAnyPermission(['assignments.view_any', 'assignments.view_own', 'returns.view_any', 'returns.view_own']) ? [{
+            title: 'Item Assignment',
+            href: '#',
+            icon: ClipboardList,
+            items: [
+                ...(hasPermission('assignments.view_any') ? [{
+                    title: 'All Assignments',
+                    href: assignmentsIndex(),
+                    icon: UserCheck,
+                }] : []),
+                // Only show "My Assignments" if user DOESN'T have view_any (staff only)
+                ...(!hasPermission('assignments.view_any') && hasPermission('assignments.view_own') ? [{
+                    title: 'My Assignments',
+                    href: myAssignments(),
+                    icon: UserCheck,
+                }] : []),
+                ...(hasPermission('returns.view_any') ? [{
+                    title: 'All Returns',
+                    href: returnsIndex(),
+                    icon: PackageOpen,
+                }] : []),
+                ...(hasPermission('returns.view_any') ? [{
+                    title: 'Pending Inspections',
+                    href: pendingInspections(),
+                    icon: ClipboardCheck,
                 }] : []),
             ],
         }] : []),
