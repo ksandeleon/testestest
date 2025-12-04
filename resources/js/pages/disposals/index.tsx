@@ -30,14 +30,11 @@ import { Input } from '@/components/ui/input';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
     MoreHorizontal,
-    PackageOpen,
+    Trash2,
     Search,
     Calendar,
-    CheckCircle,
     Clock,
-    AlertTriangle,
-    XCircle,
-    LucideIcon
+    Plus,
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -54,29 +51,22 @@ interface Item {
     model?: string;
 }
 
-interface Assignment {
+interface Disposal {
     id: number;
     item: Item;
-    user: User;
-}
-
-interface ItemReturn {
-    id: number;
-    assignment: Assignment;
-    returned_by: User;
-    inspected_by?: User;
+    requested_by_user: User;
+    approved_by_user?: User;
+    executed_by_user?: User;
     status: string;
-    return_date: string;
-    inspection_date: string | null;
-    condition_on_return: string;
-    is_damaged: boolean;
-    is_late: boolean;
-    days_late: number;
-    penalty_amount: number | null;
+    reason: string;
+    description: string;
+    requested_at: string;
+    approved_at: string | null;
+    executed_at: string | null;
 }
 
-interface PaginatedReturns {
-    data: ItemReturn[];
+interface PaginatedDisposals {
+    data: Disposal[];
     current_page: number;
     last_page: number;
     per_page: number;
@@ -90,40 +80,45 @@ interface PaginatedReturns {
 
 interface Stats {
     total: number;
-    pending_inspection: number;
+    pending: number;
     approved: number;
     rejected: number;
-    damaged: number;
-    late: number;
+    executed: number;
 }
 
 interface Filters {
     search?: string;
     status?: string;
+    reason?: string;
 }
 
 interface Props {
-    returns: PaginatedReturns;
+    disposals: PaginatedDisposals;
     filters: Filters;
     stats: Stats;
+    statuses: string[];
+    reasons: string[];
 }
 
-const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; icon: LucideIcon }> = {
-    pending_inspection: { label: 'Pending Inspection', variant: 'outline', icon: Clock },
-    approved: { label: 'Approved', variant: 'default', icon: CheckCircle },
-    rejected: { label: 'Rejected', variant: 'destructive', icon: XCircle },
+const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
+    pending: { label: 'Pending', variant: 'outline' },
+    approved: { label: 'Approved', variant: 'default' },
+    rejected: { label: 'Rejected', variant: 'destructive' },
+    executed: { label: 'Executed', variant: 'secondary' },
 };
 
-export default function Index({ returns, filters, stats }: Readonly<Props>) {
+export default function Index({ disposals, filters, stats, statuses, reasons }: Readonly<Props>) {
     const [search, setSearch] = useState(filters?.search || '');
     const [statusFilter, setStatusFilter] = useState(filters?.status || 'all');
+    const [reasonFilter, setReasonFilter] = useState(filters?.reason || 'all');
 
     const handleFilter = () => {
         router.get(
-            '/returns',
+            '/disposals',
             {
                 search: search || undefined,
                 status: statusFilter === 'all' ? undefined : statusFilter,
+                reason: reasonFilter === 'all' ? undefined : reasonFilter,
             },
             { preserveState: true }
         );
@@ -132,55 +127,46 @@ export default function Index({ returns, filters, stats }: Readonly<Props>) {
     const handleReset = () => {
         setSearch('');
         setStatusFilter('all');
-        router.get('/returns');
-    };
-
-    const handleInspect = (id: number) => {
-        router.get(`/returns/${id}/inspect`);
+        setReasonFilter('all');
+        router.get('/disposals');
     };
 
     return (
         <AppLayout
             breadcrumbs={[
                 { title: 'Item Management', href: '/items' },
-                { title: 'Returns', href: '/returns' },
+                { title: 'Disposals', href: '/disposals' },
             ]}
         >
-            <Head title="Returns" />
+            <Head title="Disposals" />
 
             <div className="space-y-6">
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-2xl font-bold tracking-tight">Item Returns</h1>
+                        <h1 className="text-2xl font-bold tracking-tight">Item Disposals</h1>
                         <p className="text-muted-foreground">
-                            Manage item returns and inspections
+                            Manage item disposal requests and execution
                         </p>
                     </div>
                     <div className="flex gap-2">
-                        <Link href="/returns/pending-inspections">
+                        <Link href="/disposals/pending">
                             <Button variant="outline">
                                 <Clock className="mr-2 h-4 w-4" />
-                                Pending ({stats?.pending_inspection || 0})
+                                Pending ({stats?.pending || 0})
                             </Button>
                         </Link>
-                        <Link href="/returns/damaged">
-                            <Button variant="outline">
-                                <AlertTriangle className="mr-2 h-4 w-4" />
-                                Damaged ({stats?.damaged || 0})
-                            </Button>
-                        </Link>
-                        <Link href="/returns/create">
+                        <Link href="/disposals/create">
                             <Button>
-                                <PackageOpen className="mr-2 h-4 w-4" />
-                                Process Return
+                                <Plus className="mr-2 h-4 w-4" />
+                                Request Disposal
                             </Button>
                         </Link>
                     </div>
                 </div>
 
                 {/* Stats Cards */}
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
                     <Card>
                         <CardHeader className="pb-2">
                             <CardDescription>Total</CardDescription>
@@ -190,7 +176,7 @@ export default function Index({ returns, filters, stats }: Readonly<Props>) {
                     <Card>
                         <CardHeader className="pb-2">
                             <CardDescription>Pending</CardDescription>
-                            <CardTitle className="text-3xl text-yellow-600">{stats?.pending_inspection || 0}</CardTitle>
+                            <CardTitle className="text-3xl text-yellow-600">{stats?.pending || 0}</CardTitle>
                         </CardHeader>
                     </Card>
                     <Card>
@@ -207,25 +193,19 @@ export default function Index({ returns, filters, stats }: Readonly<Props>) {
                     </Card>
                     <Card>
                         <CardHeader className="pb-2">
-                            <CardDescription>Damaged</CardDescription>
-                            <CardTitle className="text-3xl text-orange-600">{stats?.damaged || 0}</CardTitle>
-                        </CardHeader>
-                    </Card>
-                    <Card>
-                        <CardHeader className="pb-2">
-                            <CardDescription>Late</CardDescription>
-                            <CardTitle className="text-3xl text-purple-600">{stats?.late || 0}</CardTitle>
+                            <CardDescription>Executed</CardDescription>
+                            <CardTitle className="text-3xl text-blue-600">{stats?.executed || 0}</CardTitle>
                         </CardHeader>
                     </Card>
                 </div>
 
                 {/* Filters */}
-                <div className="grid gap-4 md:grid-cols-4">
+                <div className="grid gap-4 md:grid-cols-5">
                     <div className="md:col-span-2">
                         <div className="relative">
                             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                             <Input
-                                placeholder="Search by item or user..."
+                                placeholder="Search by item or property number..."
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && handleFilter()}
@@ -239,9 +219,24 @@ export default function Index({ returns, filters, stats }: Readonly<Props>) {
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="all">All Status</SelectItem>
-                            <SelectItem value="pending_inspection">Pending Inspection</SelectItem>
-                            <SelectItem value="approved">Approved</SelectItem>
-                            <SelectItem value="rejected">Rejected</SelectItem>
+                            {statuses?.map((status) => (
+                                <SelectItem key={status} value={status}>
+                                    {statusConfig[status]?.label || status}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    <Select value={reasonFilter} onValueChange={setReasonFilter}>
+                        <SelectTrigger>
+                            <SelectValue placeholder="All Reasons" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Reasons</SelectItem>
+                            {reasons?.map((reason) => (
+                                <SelectItem key={reason} value={reason}>
+                                    {reason.replaceAll('_', ' ')}
+                                </SelectItem>
+                            ))}
                         </SelectContent>
                     </Select>
                     <div className="flex gap-2">
@@ -257,55 +252,58 @@ export default function Index({ returns, filters, stats }: Readonly<Props>) {
                 {/* Table */}
                 <div className="rounded-md border">
                     <Table>
-                        <TableCaption>A list of all item returns</TableCaption>
+                        <TableCaption>A list of all disposal requests</TableCaption>
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Item</TableHead>
-                                <TableHead>Returned By</TableHead>
-                                <TableHead>Return Date</TableHead>
-                                <TableHead>Condition</TableHead>
+                                <TableHead>Reason</TableHead>
+                                <TableHead>Requested By</TableHead>
+                                <TableHead>Requested Date</TableHead>
                                 <TableHead>Status</TableHead>
-                                <TableHead>Issues</TableHead>
                                 <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {!returns?.data || returns.data.length === 0 ? (
+                            {!disposals?.data || disposals.data.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={7} className="text-center py-12">
+                                    <TableCell colSpan={6} className="text-center py-12">
                                         <div className="flex flex-col items-center gap-2">
-                                            <PackageOpen className="h-12 w-12 text-muted-foreground/50" />
-                                            <p className="text-lg font-medium">No returns yet</p>
+                                            <Trash2 className="h-12 w-12 text-muted-foreground/50" />
+                                            <p className="text-lg font-medium">No disposals yet</p>
                                             <p className="text-sm text-muted-foreground">
-                                                Returns will appear here once items are returned
+                                                Disposal requests will appear here
                                             </p>
                                         </div>
                                     </TableCell>
                                 </TableRow>
                             ) : (
-                                returns.data.map((returnItem) => {
-                                    const statusInfo = statusConfig[returnItem.status] || statusConfig.pending_inspection;
-                                    const StatusIcon = statusInfo.icon;
+                                disposals.data.map((disposal) => {
+                                    const statusInfo = statusConfig[disposal.status] || statusConfig.pending;
 
                                     return (
-                                        <TableRow key={returnItem.id}>
+                                        <TableRow key={disposal.id}>
                                             <TableCell>
                                                 <div>
                                                     <div className="font-medium">
-                                                        {returnItem.assignment.item.brand} {returnItem.assignment.item.model || returnItem.assignment.item.name}
+                                                        {disposal.item.brand} {disposal.item.model || disposal.item.name}
                                                     </div>
                                                     <div className="text-sm text-muted-foreground font-mono">
-                                                        {returnItem.assignment.item.property_number}
+                                                        {disposal.item.property_number}
                                                     </div>
                                                 </div>
                                             </TableCell>
                                             <TableCell>
-                                                <div className="text-sm">{returnItem.returned_by.name}</div>
+                                                <span className="capitalize">
+                                                    {disposal.reason.replaceAll('_', ' ')}
+                                                </span>
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="text-sm">{disposal.requested_by_user.name}</div>
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex items-center gap-2 text-sm">
                                                     <Calendar className="h-4 w-4 text-muted-foreground" />
-                                                    {new Date(returnItem.return_date).toLocaleDateString('en-US', {
+                                                    {new Date(disposal.requested_at).toLocaleDateString('en-US', {
                                                         month: 'short',
                                                         day: '2-digit',
                                                         year: 'numeric'
@@ -313,34 +311,9 @@ export default function Index({ returns, filters, stats }: Readonly<Props>) {
                                                 </div>
                                             </TableCell>
                                             <TableCell>
-                                                <Badge variant={returnItem.is_damaged ? 'destructive' : 'secondary'}>
-                                                    {returnItem.condition_on_return}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Badge variant={statusInfo.variant} className="flex items-center gap-1 w-fit">
-                                                    <StatusIcon className="h-3 w-3" />
+                                                <Badge variant={statusInfo.variant}>
                                                     {statusInfo.label}
                                                 </Badge>
-                                            </TableCell>
-                                            <TableCell>
-                                                <div className="flex gap-1">
-                                                    {returnItem.is_damaged && (
-                                                        <Badge variant="destructive">
-                                                            <AlertTriangle className="h-3 w-3 mr-1" />
-                                                            Damaged
-                                                        </Badge>
-                                                    )}
-                                                    {returnItem.is_late && (
-                                                        <Badge variant="outline" className="text-orange-600 border-orange-600">
-                                                            <Clock className="h-3 w-3 mr-1" />
-                                                            {returnItem.days_late} day{returnItem.days_late > 1 ? 's' : ''} late
-                                                        </Badge>
-                                                    )}
-                                                    {!returnItem.is_damaged && !returnItem.is_late && (
-                                                        <span className="text-muted-foreground text-sm">—</span>
-                                                    )}
-                                                </div>
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <DropdownMenu>
@@ -353,15 +326,27 @@ export default function Index({ returns, filters, stats }: Readonly<Props>) {
                                                     <DropdownMenuContent align="end">
                                                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                                         <DropdownMenuItem asChild>
-                                                            <Link href={`/returns/${returnItem.id}`}>
+                                                            <Link href={`/disposals/${disposal.id}`}>
                                                                 View details
                                                             </Link>
                                                         </DropdownMenuItem>
-                                                        {returnItem.status === 'pending_inspection' && (
+                                                        {disposal.status === 'pending' && (
                                                             <>
                                                                 <DropdownMenuSeparator />
-                                                                <DropdownMenuItem onClick={() => handleInspect(returnItem.id)}>
-                                                                    Inspect return
+                                                                <DropdownMenuItem asChild>
+                                                                    <Link href={`/disposals/${disposal.id}/approve`}>
+                                                                        Approve/Reject
+                                                                    </Link>
+                                                                </DropdownMenuItem>
+                                                            </>
+                                                        )}
+                                                        {disposal.status === 'approved' && (
+                                                            <>
+                                                                <DropdownMenuSeparator />
+                                                                <DropdownMenuItem asChild>
+                                                                    <Link href={`/disposals/${disposal.id}/execute`}>
+                                                                        Execute disposal
+                                                                    </Link>
                                                                 </DropdownMenuItem>
                                                             </>
                                                         )}
@@ -377,13 +362,13 @@ export default function Index({ returns, filters, stats }: Readonly<Props>) {
                 </div>
 
                 {/* Pagination */}
-                {returns?.last_page > 1 && (
+                {disposals?.last_page > 1 && (
                     <div className="flex items-center justify-between">
                         <div className="text-sm text-muted-foreground">
-                            Showing {returns.data?.length || 0} of {returns.total || 0} returns
+                            Showing {disposals.data?.length || 0} of {disposals.total || 0} disposals
                         </div>
                         <div className="flex gap-2">
-                            {returns.links?.map((link) => (
+                            {disposals.links?.map((link) => (
                                 <Button
                                     key={link.label}
                                     variant={link.active ? 'default' : 'outline'}

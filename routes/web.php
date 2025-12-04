@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AssignmentController;
+use App\Http\Controllers\DisposalController;
 use App\Http\Controllers\ItemController;
 use App\Http\Controllers\MaintenanceController;
 use App\Http\Controllers\ReturnController;
@@ -86,6 +87,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('returns/{return}/mark-penalty-paid', [ReturnController::class, 'markPenaltyPaid'])->name('returns.mark-penalty-paid');
     Route::post('assignments/{assignment}/quick-return', [ReturnController::class, 'quickReturn'])->name('returns.quick-return');
     Route::resource('returns', ReturnController::class);
+
+    // Disposal Routes
+    Route::get('disposals/pending', [DisposalController::class, 'pending'])->name('disposals.pending');
+    Route::get('disposals/{disposal}/approve', [DisposalController::class, 'showApprovalForm'])->name('disposals.show-approval');
+    Route::post('disposals/{disposal}/approve', [DisposalController::class, 'approve'])->name('disposals.approve');
+    Route::post('disposals/{disposal}/reject', [DisposalController::class, 'reject'])->name('disposals.reject');
+    Route::get('disposals/{disposal}/execute', [DisposalController::class, 'showExecutionForm'])->name('disposals.show-execution');
+    Route::post('disposals/{disposal}/execute', [DisposalController::class, 'execute'])->name('disposals.execute');
+    Route::get('disposals/export', [DisposalController::class, 'export'])->name('disposals.export');
+    Route::resource('disposals', DisposalController::class);
 });
 
 require __DIR__.'/settings.php';

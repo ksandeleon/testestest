@@ -83,6 +83,17 @@ class Item extends Model
     ];
 
     /**
+     * Item status constants.
+     */
+    public const STATUS_AVAILABLE = 'available';
+    public const STATUS_ASSIGNED = 'assigned';
+    public const STATUS_UNDER_MAINTENANCE = 'under_maintenance';
+    public const STATUS_PENDING_DISPOSAL = 'pending_disposal';
+    public const STATUS_DISPOSED = 'disposed';
+    public const STATUS_DAMAGED = 'damaged';
+    public const STATUS_LOST = 'lost';
+
+    /**
      * Get the category that owns the item.
      */
     public function category(): BelongsTo
@@ -136,6 +147,24 @@ class Item extends Model
     public function assignments(): HasMany
     {
         return $this->hasMany(Assignment::class);
+    }
+
+    /**
+     * Get all disposals for this item.
+     */
+    public function disposals(): HasMany
+    {
+        return $this->hasMany(Disposal::class);
+    }
+
+    /**
+     * Get the current disposal request for this item.
+     */
+    public function currentDisposal(): HasOne
+    {
+        return $this->hasOne(Disposal::class)
+            ->whereIn('status', [Disposal::STATUS_PENDING, Disposal::STATUS_APPROVED])
+            ->latestOfMany();
     }
 
     /**

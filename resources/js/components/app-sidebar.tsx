@@ -14,11 +14,12 @@ import { dashboard } from '@/routes';
 import { index as usersIndex, create as usersCreate, trash as usersTrash } from '@/routes/users';
 import { index as itemsIndex, create as itemsCreate } from '@/routes/items';
 import { index as maintenanceIndex, create as maintenanceCreate, calendar as maintenanceCalendar } from '@/routes/maintenance';
-import { index as assignmentsIndex, create as assignmentsCreate, myAssignments, overdue as assignmentsOverdue } from '@/routes/assignments';
-import { index as returnsIndex, create as returnsCreate, pendingInspections, damaged as returnsDamaged, late as returnsLate } from '@/routes/returns';
+import { index as assignmentsIndex, myAssignments } from '@/routes/assignments';
+import { index as returnsIndex, pendingInspections } from '@/routes/returns';
+import { index as disposalsIndex, create as disposalsCreate, pending as disposalsPending } from '@/routes/disposals';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
-import { BookOpen, Folder, LayoutGrid, Package, Users, UserPlus, PackagePlus, List, Trash2, Wrench, Plus, Calendar, UserCheck, PackageOpen, ClipboardCheck, AlertTriangle, Clock, ClipboardList } from 'lucide-react';
+import { BookOpen, Folder, LayoutGrid, Package, Users, UserPlus, PackagePlus, List, Trash2, Wrench, Plus, Calendar, UserCheck, PackageOpen, ClipboardCheck, ClipboardList } from 'lucide-react';
 import AppLogo from './app-logo';
 import { usePermissions } from '@/hooks/use-permissions';
 
@@ -122,6 +123,29 @@ export function AppSidebar() {
                     title: 'Calendar',
                     href: maintenanceCalendar(),
                     icon: Calendar,
+                }] : []),
+            ],
+        }] : []),
+        // Disposal - show if user has ANY disposal permission
+        ...(hasAnyPermission(['disposals.view_any', 'disposals.create', 'disposals.approve', 'disposals.execute']) ? [{
+            title: 'Disposal',
+            href: '#',
+            icon: Trash2,
+            items: [
+                ...(hasPermission('disposals.view_any') ? [{
+                    title: 'All Disposals',
+                    href: disposalsIndex(),
+                    icon: List,
+                }] : []),
+                ...(hasPermission('disposals.create') ? [{
+                    title: 'Request Disposal',
+                    href: disposalsCreate(),
+                    icon: Plus,
+                }] : []),
+                ...(hasPermission('disposals.approve') ? [{
+                    title: 'Pending Approval',
+                    href: disposalsPending(),
+                    icon: ClipboardCheck,
                 }] : []),
             ],
         }] : []),
