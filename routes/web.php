@@ -101,7 +101,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('disposals', DisposalController::class);
 
     // Category Routes
-    Route::post('categories/{category}/toggle-status', [CategoryController::class, 'toggleStatus'])->name('categories.toggle-status');
+    Route::post('categories/{id}/toggle-status', [CategoryController::class, 'toggleStatus'])->name('categories.toggle-status');
     Route::post('categories/{id}/restore', [CategoryController::class, 'restore'])->name('categories.restore');
     Route::delete('categories/{id}/force-delete', [CategoryController::class, 'forceDestroy'])->name('categories.force-delete');
     Route::get('categories/{category}/reassign', [CategoryController::class, 'reassignForm'])->name('categories.reassign');
@@ -109,7 +109,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('categories', CategoryController::class);
 
     // Location Routes
-    Route::post('locations/{location}/toggle-status', [LocationController::class, 'toggleStatus'])->name('locations.toggle-status');
+    Route::post('locations/{id}/toggle-status', [LocationController::class, 'toggleStatus'])->name('locations.toggle-status');
     Route::post('locations/{id}/restore', [LocationController::class, 'restore'])->name('locations.restore');
     Route::delete('locations/{id}/force-delete', [LocationController::class, 'forceDestroy'])->name('locations.force-delete');
     Route::get('locations/{location}/reassign', [LocationController::class, 'reassignForm'])->name('locations.reassign');

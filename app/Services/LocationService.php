@@ -280,7 +280,7 @@ class LocationService
     /**
      * Get unique buildings list.
      */
-    public function getBuildings(): Collection
+    public function getBuildings()
     {
         return Location::distinct()
             ->whereNotNull('building')

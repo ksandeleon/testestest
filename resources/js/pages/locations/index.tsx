@@ -43,7 +43,8 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { MoreHorizontal, Plus, Search, MapPin, Edit, Trash2, RotateCcw, Power, Package, Building } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { MoreHorizontal, Plus, Search, MapPin, Edit, Trash2, RotateCcw, Power, Package, Building, AlertCircle, CheckCircle2, X } from 'lucide-react';
 import { useState } from 'react';
 
 interface Location {
@@ -104,6 +105,7 @@ export default function Index({ locations, statistics, buildings, filters }: Rea
     const [statusFilter, setStatusFilter] = useState(filters.is_active || undefined);
     const [trashedFilter, setTrashedFilter] = useState(filters.with_trashed || undefined);
     const [deletingId, setDeletingId] = useState<number | null>(null);
+    const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
     const applyFilters = () => {
         router.get(
@@ -130,7 +132,18 @@ export default function Index({ locations, statistics, buildings, filters }: Rea
         router.delete(`/locations/${id}`, {
             preserveState: true,
             preserveScroll: true,
-            onSuccess: () => setDeletingId(null),
+            onSuccess: () => {
+                setDeletingId(null);
+                setNotification({ type: 'success', message: 'Location deleted successfully!' });
+                setTimeout(() => setNotification(null), 5000);
+            },
+            onError: (errors) => {
+                console.error('Delete error:', errors);
+                setDeletingId(null);
+                const errorMessage = errors.error || Object.values(errors)[0] || 'Failed to delete location';
+                setNotification({ type: 'error', message: String(errorMessage) });
+                setTimeout(() => setNotification(null), 5000);
+            },
         });
     };
 
@@ -138,6 +151,16 @@ export default function Index({ locations, statistics, buildings, filters }: Rea
         router.post(`/locations/${id}/restore`, {}, {
             preserveState: true,
             preserveScroll: true,
+            onSuccess: () => {
+                setNotification({ type: 'success', message: 'Location restored successfully!' });
+                setTimeout(() => setNotification(null), 5000);
+            },
+            onError: (errors) => {
+                console.error('Restore error:', errors);
+                const errorMessage = errors.error || Object.values(errors)[0] || 'Failed to restore location';
+                setNotification({ type: 'error', message: String(errorMessage) });
+                setTimeout(() => setNotification(null), 5000);
+            },
         });
     };
 
@@ -145,6 +168,16 @@ export default function Index({ locations, statistics, buildings, filters }: Rea
         router.post(`/locations/${id}/toggle-status`, {}, {
             preserveState: true,
             preserveScroll: true,
+            onSuccess: () => {
+                setNotification({ type: 'success', message: 'Location status updated successfully!' });
+                setTimeout(() => setNotification(null), 5000);
+            },
+            onError: (errors) => {
+                console.error('Toggle status error:', errors);
+                const errorMessage = errors.error || Object.values(errors)[0] || 'Failed to update location status';
+                setNotification({ type: 'error', message: String(errorMessage) });
+                setTimeout(() => setNotification(null), 5000);
+            },
         });
     };
 
@@ -158,6 +191,24 @@ export default function Index({ locations, statistics, buildings, filters }: Rea
             <Head title="Locations" />
 
             <div className="space-y-6">
+                {/* Notification Alert */}
+                {notification && (
+                    <Alert variant={notification.type === 'error' ? 'destructive' : 'default'} className="relative">
+                        {notification.type === 'success' && <CheckCircle2 className="h-4 w-4" />}
+                        {notification.type === 'error' && <AlertCircle className="h-4 w-4" />}
+                        <AlertTitle>{notification.type === 'success' ? 'Success' : 'Error'}</AlertTitle>
+                        <AlertDescription>{notification.message}</AlertDescription>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-2 top-2 h-6 w-6 p-0"
+                            onClick={() => setNotification(null)}
+                        >
+                            <X className="h-4 w-4" />
+                        </Button>
+                    </Alert>
+                )}
+
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div>
@@ -367,11 +418,6 @@ export default function Index({ locations, statistics, buildings, filters }: Rea
                                                         <DropdownMenuSeparator />
                                                         {!location.deleted_at && (
                                                             <>
-                                                                <Link href={`/locations/${location.id}`}>
-                                                                    <DropdownMenuItem>
-                                                                        View Details
-                                                                    </DropdownMenuItem>
-                                                                </Link>
                                                                 <Link href={`/locations/${location.id}/edit`}>
                                                                     <DropdownMenuItem>
                                                                         <Edit className="mr-2 h-4 w-4" />
