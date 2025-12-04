@@ -19,7 +19,7 @@ import { index as returnsIndex, pendingInspections } from '@/routes/returns';
 import { index as disposalsIndex, create as disposalsCreate, pending as disposalsPending } from '@/routes/disposals';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
-import { BookOpen, Folder, LayoutGrid, Package, Users, UserPlus, PackagePlus, List, Trash2, Wrench, Plus, Calendar, UserCheck, PackageOpen, ClipboardCheck, ClipboardList } from 'lucide-react';
+import { BookOpen, Folder, LayoutGrid, Package, Users, UserPlus, PackagePlus, List, Trash2, Wrench, Plus, Calendar, UserCheck, PackageOpen, ClipboardCheck, ClipboardList, Tag, MapPin } from 'lucide-react';
 import AppLogo from './app-logo';
 import { usePermissions } from '@/hooks/use-permissions';
 
@@ -57,7 +57,7 @@ export function AppSidebar() {
             ],
         }] : []),
         // Item Management - show if user has ANY item permission
-        ...(hasAnyPermission(['items.view_any', 'items.create', 'items.view']) ? [{
+        ...(hasAnyPermission(['items.view_any', 'items.create', 'items.view', 'categories.view_any', 'locations.view_any']) ? [{
             title: 'Item Management',
             href: '#',
             icon: Package,
@@ -71,6 +71,16 @@ export function AppSidebar() {
                     title: 'Add Item',
                     href: itemsCreate(),
                     icon: PackagePlus,
+                }] : []),
+                ...(hasPermission('categories.view_any') ? [{
+                    title: 'Manage Categories',
+                    href: '/categories',
+                    icon: Tag,
+                }] : []),
+                ...(hasPermission('locations.view_any') ? [{
+                    title: 'Manage Locations',
+                    href: '/locations',
+                    icon: MapPin,
                 }] : []),
             ],
         }] : []),

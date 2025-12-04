@@ -1,8 +1,10 @@
 <?php
 
 use App\Http\Controllers\AssignmentController;
+use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\DisposalController;
 use App\Http\Controllers\ItemController;
+use App\Http\Controllers\LocationController;
 use App\Http\Controllers\MaintenanceController;
 use App\Http\Controllers\ReturnController;
 use App\Http\Controllers\UserController;
@@ -97,6 +99,22 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('disposals/{disposal}/execute', [DisposalController::class, 'execute'])->name('disposals.execute');
     Route::get('disposals/export', [DisposalController::class, 'export'])->name('disposals.export');
     Route::resource('disposals', DisposalController::class);
+
+    // Category Routes
+    Route::post('categories/{category}/toggle-status', [CategoryController::class, 'toggleStatus'])->name('categories.toggle-status');
+    Route::post('categories/{id}/restore', [CategoryController::class, 'restore'])->name('categories.restore');
+    Route::delete('categories/{id}/force-delete', [CategoryController::class, 'forceDestroy'])->name('categories.force-delete');
+    Route::get('categories/{category}/reassign', [CategoryController::class, 'reassignForm'])->name('categories.reassign');
+    Route::post('categories/{category}/reassign', [CategoryController::class, 'reassignItems'])->name('categories.reassign-items');
+    Route::resource('categories', CategoryController::class);
+
+    // Location Routes
+    Route::post('locations/{location}/toggle-status', [LocationController::class, 'toggleStatus'])->name('locations.toggle-status');
+    Route::post('locations/{id}/restore', [LocationController::class, 'restore'])->name('locations.restore');
+    Route::delete('locations/{id}/force-delete', [LocationController::class, 'forceDestroy'])->name('locations.force-delete');
+    Route::get('locations/{location}/reassign', [LocationController::class, 'reassignForm'])->name('locations.reassign');
+    Route::post('locations/{location}/reassign', [LocationController::class, 'reassignItems'])->name('locations.reassign-items');
+    Route::resource('locations', LocationController::class);
 });
 
 require __DIR__.'/settings.php';
