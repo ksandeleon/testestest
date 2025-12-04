@@ -83,12 +83,15 @@ class Item extends Model
     ];
 
     /**
-     * Item status constants.
+     * Item status constants - MUST match migration enum values.
+     *
+     * @see database/migrations/2025_11_20_075000_create_items_table.php
      */
     public const STATUS_AVAILABLE = 'available';
     public const STATUS_ASSIGNED = 'assigned';
-    public const STATUS_UNDER_MAINTENANCE = 'under_maintenance';
-    public const STATUS_PENDING_DISPOSAL = 'pending_disposal';
+    public const STATUS_IN_USE = 'in_use';
+    public const STATUS_UNDER_MAINTENANCE = 'in_maintenance'; // Changed from 'under_maintenance'
+    public const STATUS_PENDING_DISPOSAL = 'for_disposal'; // Changed from 'pending_disposal'
     public const STATUS_DISPOSED = 'disposed';
     public const STATUS_DAMAGED = 'damaged';
     public const STATUS_LOST = 'lost';

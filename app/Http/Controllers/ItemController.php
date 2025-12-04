@@ -2,23 +2,37 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Item;
+use App\Http\Requests\StoreItemRequest;
+use App\Http\Requests\UpdateItemRequest;
 use App\Models\Category;
+use App\Models\Item;
 use App\Models\Location;
 use App\Models\User;
-use Endroid\QrCode\Builder\Builder;
-use Endroid\QrCode\Encoding\Encoding;
-use Endroid\QrCode\ErrorCorrectionLevel;
-use Endroid\QrCode\Writer\PngWriter;
+use App\Services\ItemService;
+use App\Services\ItemStateMachine;
+use App\Services\QrCodeService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class ItemController extends Controller
 {
+    protected ItemService $itemService;
+    protected QrCodeService $qrCodeService;
+    protected ItemStateMachine $stateMachine;
+
+    public function __construct(
+        ItemService $itemService,
+        QrCodeService $qrCodeService,
+        ItemStateMachine $stateMachine
+    ) {
+        $this->itemService = $itemService;
+        $this->qrCodeService = $qrCodeService;
+        $this->stateMachine = $stateMachine;
+    }
+
     /**
      * Display a listing of items.
      */
@@ -36,39 +50,8 @@ class ItemController extends Controller
         $query = Item::with(['category', 'location', 'accountablePerson'])
             ->latest();
 
-        // Search
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('description', 'like', "%{$search}%")
-                    ->orWhere('property_number', 'like', "%{$search}%")
-                    ->orWhere('iar_number', 'like', "%{$search}%")
-                    ->orWhere('serial_number', 'like', "%{$search}%")
-                    ->orWhere('brand', 'like', "%{$search}%")
-                    ->orWhere('model', 'like', "%{$search}%");
-            });
-        }
-
-        // Filter by category
-        if ($request->filled('category')) {
-            $query->where('category_id', $request->category);
-        }
-
-        // Filter by location
-        if ($request->filled('location')) {
-            $query->where('location_id', $request->location);
-        }
-
-        // Filter by status
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-
-        // Filter by condition
-        if ($request->filled('condition')) {
-            $query->where('condition', $request->condition);
-        }
+        // Apply filters
+        $this->applyFilters($query, $request);
 
         $items = $query->paginate(15)->withQueryString();
 
@@ -95,44 +78,19 @@ class ItemController extends Controller
     }
 
     /**
-     * Store a newly created item in storage.
+     * Store a newly created item.
      */
-    public function store(Request $request): RedirectResponse
+    public function store(StoreItemRequest $request): RedirectResponse
     {
-        $this->authorize('items.create');
+        try {
+            $this->itemService->create($request->validated(), generateQr: true);
 
-        $validated = $request->validate([
-            'iar_number' => ['required', 'string', 'max:255', 'unique:items'],
-            'property_number' => ['required', 'string', 'max:255', 'unique:items'],
-            'fund_cluster' => ['nullable', 'string', 'max:255'],
-            'name' => ['required', 'string', 'max:255'],
-            'description' => ['required', 'string'],
-            'brand' => ['nullable', 'string', 'max:255'],
-            'model' => ['nullable', 'string', 'max:255'],
-            'serial_number' => ['nullable', 'string', 'max:255'],
-            'specifications' => ['nullable', 'string'],
-            'acquisition_cost' => ['required', 'numeric', 'min:0'],
-            'unit_of_measure' => ['nullable', 'string', 'max:255'],
-            'quantity' => ['required', 'integer', 'min:1'],
-            'category_id' => ['required', 'exists:categories,id'],
-            'location_id' => ['required', 'exists:locations,id'],
-            'accountable_person_id' => ['nullable', 'exists:users,id'],
-            'accountable_person_name' => ['nullable', 'string', 'max:255'],
-            'accountable_person_position' => ['nullable', 'string', 'max:255'],
-            'date_acquired' => ['required', 'date'],
-            'date_inventoried' => ['nullable', 'date'],
-            'estimated_useful_life' => ['nullable', 'date'],
-            'status' => ['required', 'in:available,assigned,in_use,in_maintenance,for_disposal,disposed,lost,damaged'],
-            'condition' => ['required', 'in:excellent,good,fair,poor,for_repair,unserviceable'],
-            'remarks' => ['nullable', 'string'],
-        ]);
-
-        $validated['created_by'] = Auth::id();
-
-        $item = Item::create($validated);
-
-        return redirect()->route('items.show', $item)
-            ->with('success', 'Item created successfully.');
+            return redirect()->route('items.index')
+                ->with('success', 'Item created successfully.');
+        } catch (\Exception $e) {
+            return back()->withInput()
+                ->with('error', 'Failed to create item: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -140,30 +98,33 @@ class ItemController extends Controller
      */
     public function show(Item $item): Response
     {
-        $this->authorize('items.view');
+        $this->authorize('items.view', $item);
 
         $item->load([
             'category',
             'location',
             'accountablePerson',
-            'creator',
-            'updater',
+            'assignments' => fn ($q) => $q->latest()->limit(5),
+            'maintenances' => fn ($q) => $q->latest()->limit(5),
         ]);
 
         return Inertia::render('items/show', [
             'item' => $item,
+            'canAssign' => $this->stateMachine->canBeAssigned($item),
+            'canMaintain' => $this->stateMachine->canBeMaintained($item),
+            'canDispose' => $this->stateMachine->canBeDisposed($item),
         ]);
     }
 
     /**
-     * Show the form for editing the specified item.
+     * Show the form for editing the item.
      */
     public function edit(Item $item): Response
     {
-        $this->authorize('items.update');
+        $this->authorize('items.update', $item);
 
         return Inertia::render('items/edit', [
-            'item' => $item->load(['category', 'location', 'accountablePerson']),
+            'item' => $item->load(['category', 'location']),
             'categories' => Category::active()->get(['id', 'name', 'code']),
             'locations' => Location::active()->get(['id', 'name', 'code']),
             'users' => User::orderBy('name')->get(['id', 'name', 'email']),
@@ -171,181 +132,119 @@ class ItemController extends Controller
     }
 
     /**
-     * Update the specified item in storage.
+     * Update the specified item.
      */
-    public function update(Request $request, Item $item): RedirectResponse
+    public function update(UpdateItemRequest $request, Item $item): RedirectResponse
     {
-        $this->authorize('items.update');
+        try {
+            $this->itemService->update($item, $request->validated());
 
-        $validated = $request->validate([
-            'iar_number' => ['required', 'string', 'max:255', 'unique:items,iar_number,' . $item->id],
-            'property_number' => ['required', 'string', 'max:255', 'unique:items,property_number,' . $item->id],
-            'fund_cluster' => ['nullable', 'string', 'max:255'],
-            'name' => ['required', 'string', 'max:255'],
-            'description' => ['required', 'string'],
-            'brand' => ['nullable', 'string', 'max:255'],
-            'model' => ['nullable', 'string', 'max:255'],
-            'serial_number' => ['nullable', 'string', 'max:255'],
-            'specifications' => ['nullable', 'string'],
-            'acquisition_cost' => ['required', 'numeric', 'min:0'],
-            'unit_of_measure' => ['nullable', 'string', 'max:255'],
-            'quantity' => ['required', 'integer', 'min:1'],
-            'category_id' => ['required', 'exists:categories,id'],
-            'location_id' => ['required', 'exists:locations,id'],
-            'accountable_person_id' => ['nullable', 'exists:users,id'],
-            'accountable_person_name' => ['nullable', 'string', 'max:255'],
-            'accountable_person_position' => ['nullable', 'string', 'max:255'],
-            'date_acquired' => ['required', 'date'],
-            'date_inventoried' => ['nullable', 'date'],
-            'estimated_useful_life' => ['nullable', 'date'],
-            'status' => ['required', 'in:available,assigned,in_use,in_maintenance,for_disposal,disposed,lost,damaged'],
-            'condition' => ['required', 'in:excellent,good,fair,poor,for_repair,unserviceable'],
-            'remarks' => ['nullable', 'string'],
-        ]);
-
-        $validated['updated_by'] = Auth::id();
-
-        $item->update($validated);
-
-        return redirect()->route('items.show', $item)
-            ->with('success', 'Item updated successfully.');
+            return redirect()->route('items.index')
+                ->with('success', 'Item updated successfully.');
+        } catch (\InvalidArgumentException $e) {
+            return back()->withInput()
+                ->with('error', $e->getMessage());
+        } catch (\Exception $e) {
+            return back()->withInput()
+                ->with('error', 'Failed to update item: ' . $e->getMessage());
+        }
     }
 
     /**
-     * Remove the specified item from storage (soft delete).
+     * Soft delete the specified item.
      */
     public function destroy(Item $item): RedirectResponse
     {
-        $this->authorize('items.delete');
+        $this->authorize('items.delete', $item);
 
-        $item->delete();
+        try {
+            $this->itemService->delete($item, force: false);
 
-        return redirect()->route('items.index')
-            ->with('success', 'Item deleted successfully.');
+            return redirect()->route('items.index')
+                ->with('success', 'Item deleted successfully.');
+        } catch (\Exception $e) {
+            return back()->with('error', $e->getMessage());
+        }
     }
 
     /**
-     * Restore the specified soft-deleted item.
+     * Restore a soft-deleted item.
      */
     public function restore(int $id): RedirectResponse
     {
         $this->authorize('items.restore');
 
-        $item = Item::withTrashed()->findOrFail($id);
-        $item->restore();
+        $item = Item::onlyTrashed()->findOrFail($id);
+        $this->itemService->restore($item);
 
-        return redirect()->route('items.show', $item)
+        return redirect()->route('items.index')
             ->with('success', 'Item restored successfully.');
     }
 
     /**
-     * Permanently delete the specified item.
+     * Permanently delete an item.
      */
     public function forceDelete(int $id): RedirectResponse
     {
         $this->authorize('items.force_delete');
 
         $item = Item::withTrashed()->findOrFail($id);
-        $item->forceDelete();
 
-        return redirect()->route('items.index')
-            ->with('success', 'Item permanently deleted.');
+        try {
+            $this->itemService->delete($item, force: true);
+
+            return redirect()->route('items.index')
+                ->with('success', 'Item permanently deleted.');
+        } catch (\Exception $e) {
+            return back()->with('error', $e->getMessage());
+        }
     }
 
     /**
-     * Generate QR code for the specified item.
+     * Generate or regenerate QR code for an item.
      */
     public function generateQr(Item $item): RedirectResponse
     {
         $this->authorize('items.generate_qr');
 
-        // Generate unique QR code if not exists
-        if (!$item->qr_code) {
-            $qrCode = 'EARIST-' . strtoupper($item->property_number ?? uniqid());
+        try {
+            $this->itemService->generateQrCode($item, regenerate: true);
 
-            // Create QR code data - JSON with item details
-            $qrData = json_encode([
-                'item_id' => $item->id,
-                'property_number' => $item->property_number,
-                'iar_number' => $item->iar_number,
-                'name' => $item->name,
-                'qr_code' => $qrCode,
-                'url' => route('items.show', $item),
-            ]);
-
-            // Generate QR code image
-            $builder = new Builder(
-                writer: new PngWriter(),
-                writerOptions: [],
-                validateResult: false,
-                data: $qrData,
-                encoding: new Encoding('UTF-8'),
-                errorCorrectionLevel: ErrorCorrectionLevel::High,
-                size: 300,
-                margin: 10,
-            );
-
-            $result = $builder->build();
-
-            // Save QR code image to storage
-            $filename = 'qr-codes/' . $qrCode . '.png';
-            Storage::disk('public')->put($filename, $result->getString());
-
-            // Update item with QR code info
-            $item->update([
-                'qr_code' => $qrCode,
-                'qr_code_path' => $filename,
-                'updated_by' => Auth::id(),
-            ]);
+            return back()->with('success', 'QR code generated successfully.');
+        } catch (\Exception $e) {
+            return back()->with('error', 'Failed to generate QR code: ' . $e->getMessage());
         }
-
-        return back()->with('success', 'QR code generated successfully.');
     }
 
     /**
-     * Print QR code for the specified item.
+     * Display QR code for printing.
      */
     public function printQr(Item $item): Response
     {
-        $this->authorize('items.print_qr');
+        $this->authorize('items.view', $item);
 
         return Inertia::render('items/print-qr', [
-            'item' => $item->load(['category', 'location', 'accountablePerson']),
+            'item' => $item,
+            'qrCodeUrl' => $this->qrCodeService->getUrl($item->qr_code_path),
         ]);
     }
 
     /**
-     * View item history.
+     * View item activity history.
      */
     public function history(Item $item): Response
     {
-        $this->authorize('items.view_history');
+        $this->authorize('items.view', $item);
 
-        // This will be extended when we add assignment/maintenance/disposal tracking
+        $activities = $item->activities()
+            ->with('causer')
+            ->latest()
+            ->paginate(20);
+
         return Inertia::render('items/history', [
-            'item' => $item->load(['category', 'location', 'accountablePerson', 'creator', 'updater']),
+            'item' => $item,
+            'activities' => $activities,
         ]);
-    }
-
-    /**
-     * Update item cost.
-     */
-    public function updateCost(Request $request, Item $item): RedirectResponse
-    {
-        $this->authorize('items.update_cost');
-
-        $validated = $request->validate([
-            'acquisition_cost' => ['required', 'numeric', 'min:0'],
-            'remarks' => ['nullable', 'string'],
-        ]);
-
-        $item->update([
-            'acquisition_cost' => $validated['acquisition_cost'],
-            'remarks' => $validated['remarks'] ?? $item->remarks,
-            'updated_by' => Auth::id(),
-        ]);
-
-        return back()->with('success', 'Item cost updated successfully.');
     }
 
     /**
@@ -358,49 +257,25 @@ class ItemController extends Controller
         $validated = $request->validate([
             'item_ids' => ['required', 'array'],
             'item_ids.*' => ['exists:items,id'],
-            'action' => ['required', 'in:update_status,update_condition,update_location,delete'],
-            'status' => ['required_if:action,update_status', 'in:available,assigned,in_use,in_maintenance,for_disposal,disposed,lost,damaged'],
-            'condition' => ['required_if:action,update_condition', 'in:excellent,good,fair,poor,for_repair,unserviceable'],
-            'location_id' => ['required_if:action,update_location', 'exists:locations,id'],
+            'action' => ['required', 'in:update_status,update_location,update_category'],
+            'value' => ['required'],
         ]);
 
-        $items = Item::whereIn('id', $validated['item_ids']);
+        try {
+            $items = Item::whereIn('id', $validated['item_ids'])->get();
 
-        switch ($validated['action']) {
-            case 'update_status':
-                $items->update([
-                    'status' => $validated['status'],
-                    'updated_by' => Auth::id(),
-                ]);
-                $message = 'Items status updated successfully.';
-                break;
+            foreach ($items as $item) {
+                match ($validated['action']) {
+                    'update_status' => $this->itemService->changeStatus($item, $validated['value'], 'Bulk status update'),
+                    'update_location' => $item->update(['location_id' => $validated['value']]),
+                    'update_category' => $item->update(['category_id' => $validated['value']]),
+                };
+            }
 
-            case 'update_condition':
-                $items->update([
-                    'condition' => $validated['condition'],
-                    'updated_by' => Auth::id(),
-                ]);
-                $message = 'Items condition updated successfully.';
-                break;
-
-            case 'update_location':
-                $items->update([
-                    'location_id' => $validated['location_id'],
-                    'updated_by' => Auth::id(),
-                ]);
-                $message = 'Items location updated successfully.';
-                break;
-
-            case 'delete':
-                $items->delete();
-                $message = 'Items deleted successfully.';
-                break;
-
-            default:
-                return back()->with('error', 'Invalid action.');
+            return back()->with('success', 'Items updated successfully.');
+        } catch (\Exception $e) {
+            return back()->with('error', 'Bulk update failed: ' . $e->getMessage());
         }
-
-        return back()->with('success', $message);
     }
 
     /**
@@ -410,53 +285,75 @@ class ItemController extends Controller
     {
         $this->authorize('items.export');
 
-        // Export logic will be implemented when needed (CSV, Excel, PDF)
-
+        // TODO: Implement export functionality with maatwebsite/excel
         return back()->with('info', 'Export functionality coming soon.');
     }
 
     /**
-     * Import items data.
+     * Import items from file.
      */
     public function import(Request $request): RedirectResponse
     {
         $this->authorize('items.import');
 
-        // Import logic will be implemented when needed (CSV, Excel)
-
+        // TODO: Implement import functionality with maatwebsite/excel
         return back()->with('info', 'Import functionality coming soon.');
     }
 
     /**
-     * Staff-specific view of their assigned items.
+     * Staff user's view of their assigned items.
      */
     private function staffItemsView(Request $request): Response
     {
         $user = Auth::user();
 
-        $query = $user->assignedItems()
-            ->with(['category', 'location', 'currentAssignment']);
+        $query = Item::with(['category', 'location'])
+            ->where('accountable_person_id', $user->id)
+            ->latest();
 
-        // Search
+        // Apply filters
+        $this->applyFilters($query, $request);
+
+        $items = $query->paginate(15)->withQueryString();
+
+        return Inertia::render('items/my-items', [
+            'items' => $items,
+            'filters' => $request->only(['search', 'status']),
+        ]);
+    }
+
+    /**
+     * Apply common filters to the query.
+     */
+    private function applyFilters($query, Request $request): void
+    {
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                     ->orWhere('description', 'like', "%{$search}%")
-                    ->orWhere('property_number', 'like', "%{$search}%");
+                    ->orWhere('property_number', 'like', "%{$search}%")
+                    ->orWhere('iar_number', 'like', "%{$search}%")
+                    ->orWhere('serial_number', 'like', "%{$search}%")
+                    ->orWhere('brand', 'like', "%{$search}%")
+                    ->orWhere('model', 'like', "%{$search}%");
             });
         }
 
-        $items = $query->paginate(15)->withQueryString();
+        if ($request->filled('category')) {
+            $query->where('category_id', $request->category);
+        }
 
-        $categories = Category::orderBy('name')->get(['id', 'name']);
-        $locations = Location::orderBy('name')->get(['id', 'name']);
+        if ($request->filled('location')) {
+            $query->where('location_id', $request->location);
+        }
 
-        return Inertia::render('items/my-items', [
-            'items' => $items,
-            'categories' => $categories,
-            'locations' => $locations,
-            'filters' => $request->only(['search']),
-        ]);
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->filled('condition')) {
+            $query->where('condition', $request->condition);
+        }
     }
 }
