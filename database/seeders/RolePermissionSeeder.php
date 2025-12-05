@@ -225,8 +225,8 @@ class RolePermissionSeeder extends Seeder
             'reports.item_history', 'reports.maintenance', 'reports.disposal', 'reports.financial',
             'reports.activity', 'reports.custom',
 
-            // Activity logs view permissions
-            'activity_logs.view_any', 'activity_logs.view', 'activity_logs.export',
+            // Activity logs full permissions
+            'activity_logs.view_any', 'activity_logs.view', 'activity_logs.export', 'activity_logs.delete',
 
             // Categories and locations
             'categories.view_any', 'categories.view', 'categories.create', 'categories.update', 'categories.delete',

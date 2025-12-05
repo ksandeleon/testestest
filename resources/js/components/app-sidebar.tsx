@@ -19,7 +19,7 @@ import { index as returnsIndex, pendingInspections } from '@/routes/returns';
 import { index as disposalsIndex, create as disposalsCreate, pending as disposalsPending } from '@/routes/disposals';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
-import { BookOpen, Folder, LayoutGrid, Package, Users, UserPlus, PackagePlus, List, Trash2, Wrench, Plus, Calendar, UserCheck, PackageOpen, ClipboardCheck, ClipboardList, Tag, MapPin } from 'lucide-react';
+import { BookOpen, Folder, LayoutGrid, Package, Users, UserPlus, PackagePlus, List, Trash2, Wrench, Plus, Calendar, UserCheck, PackageOpen, ClipboardCheck, ClipboardList, Tag, MapPin, Activity } from 'lucide-react';
 import AppLogo from './app-logo';
 import { usePermissions } from '@/hooks/use-permissions';
 
@@ -158,6 +158,12 @@ export function AppSidebar() {
                     icon: ClipboardCheck,
                 }] : []),
             ],
+        }] : []),
+        // Activity Logs - show if user has activity log view permission
+        ...(hasPermission('activity_logs.view_any') ? [{
+            title: 'Activity Logs',
+            href: '/activity-logs',
+            icon: Activity,
         }] : []),
     ];
 

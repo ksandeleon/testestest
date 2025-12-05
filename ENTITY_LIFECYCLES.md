@@ -1,18 +1,18 @@
 # Entity Lifecycles
 
-## 1. Item Lifecycle
+=## 1. Item Lifecycle
 ```
 Create → Active → [Assignment/Maintenance/Disposal]
   ↓
 Active ← Return (if assigned)
   ↓
-Maintenance → Under Repair → Repaired → Active
+Maintenance → Under Maintenance -> Repaired → Active
   ↓
 Damaged → [Repair or Disposal]
   ↓
 Disposal → Pending Approval → Approved → Disposed
   ↓
-Deleted (Soft) → [Restore or Force Delete]
+Deleted (Soft) → [Restore or Soft Delete]
 ```
 
 **States:**
@@ -26,7 +26,7 @@ Deleted (Soft) → [Restore or Force Delete]
 
 ---
 
-## 2. Assignment Lifecycle
+=## 2. Assignment Lifecycle
 ```
 Request (optional) → Create → Assigned → Active
   ↓
@@ -53,7 +53,7 @@ Rejected → Item Remains with User → Re-inspect or Extend
 
 ---
 
-## 3. Return Lifecycle
+=## 3. Return Lifecycle
 ```
 Process Return → Pending Inspection → Assign Inspector
   ↓
@@ -82,7 +82,7 @@ Reject → Pending Re-inspection or User Action
 
 ---
 
-## 4. Maintenance Lifecycle
+=## 4. Maintenance Lifecycle
 ```
 Request → Scheduled → Assign Technician
   ↓
@@ -105,7 +105,7 @@ Disposal → Mark for Disposal → Disposal Lifecycle
 
 ---
 
-## 5. Disposal Lifecycle
+=## 5. Disposal Lifecycle
 ```
 Mark for Disposal → Create Request → Add Reason
   ↓
@@ -132,17 +132,17 @@ Reject → Return to Active (if repairable) or Re-evaluate
 ```
 User Creates Request → Submit
   ↓
-Pending Review → Assign Approver → Notify
+Pending Review → Notify Approver
   ↓
 Review → [Add Comments/Questions]
   ↓
 [Branch: Approve, Reject, or Request Changes]
   ↓
-Approve → Execute Action (Assignment/Purchase/etc.)
+Approve -> Execute Action (Assignment/Purchase/etc.) → Notify User
   ↓
-Reject → Notify User → [User Can Resubmit]
+Reject/Request Change → Notify User → [User Can Resubmit]
   ↓
-Request Changes → User Updates → Re-submit
+Request Changes → Notify User -> User Updates → Re-submit
 ```
 
 **States:**
@@ -155,7 +155,7 @@ Request Changes → User Updates → Re-submit
 
 ---
 
-## 7. Category/Location Lifecycle
+=## 7. Category/Location Lifecycle
 ```
 Create → Active → [Items Associated]
   ↓
@@ -275,7 +275,7 @@ Return Scan → Verify Item → Log Return
   ↓
 Maintenance Scan → Log Maintenance Start/End
   ↓
-[Optional] Regenerate → Update Code → Reprint
+Regenerate → Update Code → Reprint
 ```
 
 **Events:**
@@ -339,3 +339,25 @@ View All Records → Generate Reports → Export → Review Activity Logs
 ```
 Manage All Entities → Approve Requests → Generate Reports → Configure System
 ```
+
+
+
+
+====installed libraries:
+
+baconqr? for qr? unsure yet..
+
+spatie/laravel-permission - Role & permission management
+spatie/laravel-activitylog - Activity logging
+
+# Excel Import/Export (items.import, items.export, reports.export)
+composer require maatwebsite/excel
+
+# PDF Generation (for reports, QR labels)
+composer require barryvdh/laravel-dompdf
+
+# Job Queue (for async tasks like bulk QR generation)
+composer require predis/predis  # If using Redis
+# OR already have database queue driver
+
+

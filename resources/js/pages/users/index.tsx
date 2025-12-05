@@ -20,8 +20,19 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, UserPlus, Trash2 } from 'lucide-react';
-import { useEffect } from 'react';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { MoreHorizontal, UserPlus, Trash2, CheckCircle2, XCircle } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 interface Role {
     id: number;
@@ -33,6 +44,9 @@ interface User {
     name: string;
     email: string;
     email_verified_at: string | null;
+    is_active: boolean;
+    activated_at: string | null;
+    deactivated_at: string | null;
     created_at: string;
     updated_at: string;
     deleted_at: string | null;
@@ -57,10 +71,111 @@ interface Props {
 }
 
 export default function Index({ users }: Props) {
+    const [notification, setNotification] = useState<{
+        type: 'success' | 'error';
+        message: string;
+    } | null>(null);
+    const [deactivateDialog, setDeactivateDialog] = useState<{
+        open: boolean;
+        user: User | null;
+    }>({ open: false, user: null });
+    const [forceReturn, setForceReturn] = useState(false);
+
     // Reload data when component mounts to ensure fresh data
     useEffect(() => {
         router.reload({ only: ['users'] });
     }, []);
+
+    // Auto-dismiss notification after 5 seconds
+    useEffect(() => {
+        if (notification) {
+            const timer = setTimeout(() => setNotification(null), 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [notification]);
+
+    const handleToggleStatus = (user: User) => {
+        if (user.is_active) {
+            // Show confirmation dialog for deactivation
+            setDeactivateDialog({ open: true, user });
+        } else {
+            // Activate directly
+            router.post(
+                `/users/${user.id}/activate`,
+                {},
+                {
+                    onSuccess: () => {
+                        setNotification({
+                            type: 'success',
+                            message: `User "${user.name}" activated successfully.`,
+                        });
+                    },
+                    onError: (errors) => {
+                        const errorMessage =
+                            errors.error || Object.values(errors)[0];
+                        setNotification({
+                            type: 'error',
+                            message: String(errorMessage),
+                        });
+                    },
+                }
+            );
+        }
+    };
+
+    const handleDeactivateConfirm = () => {
+        if (!deactivateDialog.user) return;
+
+        router.post(
+            `/users/${deactivateDialog.user.id}/deactivate`,
+            { force_return_items: forceReturn },
+            {
+                onSuccess: () => {
+                    setNotification({
+                        type: 'success',
+                        message: `User "${deactivateDialog.user?.name}" deactivated successfully.`,
+                    });
+                    setDeactivateDialog({ open: false, user: null });
+                    setForceReturn(false);
+                },
+                onError: (errors) => {
+                    const errorMessage =
+                        errors.error || Object.values(errors)[0];
+                    setNotification({
+                        type: 'error',
+                        message: String(errorMessage),
+                    });
+                    setDeactivateDialog({ open: false, user: null });
+                    setForceReturn(false);
+                },
+            }
+        );
+    };
+
+    const handleDelete = (user: User) => {
+        if (
+            confirm(
+                `Are you sure you want to delete "${user.name}"? This action can be undone from the trash.`
+            )
+        ) {
+            router.delete(`/users/${user.id}`, {
+                onSuccess: () => {
+                    setNotification({
+                        type: 'success',
+                        message: `User "${user.name}" deleted successfully.`,
+                    });
+                },
+                onError: (errors) => {
+                    const errorMessage =
+                        errors.error || Object.values(errors)[0];
+                    setNotification({
+                        type: 'error',
+                        message: String(errorMessage),
+                    });
+                },
+            });
+        }
+    };
 
     return (
         <AppLayout
@@ -98,6 +213,20 @@ export default function Index({ users }: Props) {
                         </Link>
                     </div>
                 </div>
+
+                {notification && (
+                    <Alert
+                        variant={
+                            notification.type === 'error'
+                                ? 'destructive'
+                                : 'default'
+                        }
+                    >
+                        <AlertDescription>
+                            {notification.message}
+                        </AlertDescription>
+                    </Alert>
+                )}
 
                 <div className="rounded-md border">
                     <Table>
@@ -155,8 +284,13 @@ export default function Index({ users }: Props) {
                                                 <Badge variant="destructive">
                                                     Deleted
                                                 </Badge>
+                                            ) : !user.is_active ? (
+                                                <Badge variant="secondary">
+                                                    Inactive
+                                                </Badge>
                                             ) : user.email_verified_at ? (
                                                 <Badge variant="default">
+                                                    <CheckCircle2 className="mr-1 h-3 w-3" />
                                                     Active
                                                 </Badge>
                                             ) : (
@@ -209,17 +343,42 @@ export default function Index({ users }: Props) {
                                                         </Link>
                                                     </DropdownMenuItem>
                                                     <DropdownMenuSeparator />
+                                                    {!user.deleted_at && (
+                                                        <>
+                                                            {user.is_active ? (
+                                                                <DropdownMenuItem
+                                                                    onClick={() =>
+                                                                        handleToggleStatus(
+                                                                            user
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    <XCircle className="mr-2 h-4 w-4" />
+                                                                    Deactivate user
+                                                                </DropdownMenuItem>
+                                                            ) : (
+                                                                <DropdownMenuItem
+                                                                    onClick={() =>
+                                                                        handleToggleStatus(
+                                                                            user
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                                                                    Activate user
+                                                                </DropdownMenuItem>
+                                                            )}
+                                                            <DropdownMenuSeparator />
+                                                        </>
+                                                    )}
                                                     <DropdownMenuItem
                                                         className="text-destructive"
-                                                        asChild
+                                                        onClick={() =>
+                                                            handleDelete(user)
+                                                        }
                                                     >
-                                                        <Link
-                                                            href={`/users/${user.id}`}
-                                                            method="delete"
-                                                            as="button"
-                                                        >
-                                                            Delete user
-                                                        </Link>
+                                                        <Trash2 className="mr-2 h-4 w-4" />
+                                                        Delete user
                                                     </DropdownMenuItem>
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
@@ -269,6 +428,67 @@ export default function Index({ users }: Props) {
                     </div>
                 )}
             </div>
+
+            {/* Deactivate Confirmation Dialog */}
+            <AlertDialog
+                open={deactivateDialog.open}
+                onOpenChange={(open) =>
+                    setDeactivateDialog({ ...deactivateDialog, open })
+                }
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>
+                            Deactivate User
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to deactivate "
+                            {deactivateDialog.user?.name}"?
+                            {deactivateDialog.user && (
+                                <div className="mt-4 space-y-2">
+                                    <label className="flex items-center space-x-2">
+                                        <input
+                                            type="checkbox"
+                                            checked={forceReturn}
+                                            onChange={(e) =>
+                                                setForceReturn(
+                                                    e.target.checked
+                                                )
+                                            }
+                                            className="rounded border-gray-300"
+                                        />
+                                        <span className="text-sm">
+                                            Force return all active item
+                                            assignments
+                                        </span>
+                                    </label>
+                                    <p className="text-xs text-muted-foreground">
+                                        If unchecked and the user has active
+                                        assignments, the deactivation will
+                                        fail.
+                                    </p>
+                                </div>
+                            )}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel
+                            onClick={() => {
+                                setDeactivateDialog({
+                                    open: false,
+                                    user: null,
+                                });
+                                setForceReturn(false);
+                            }}
+                        >
+                            Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeactivateConfirm}>
+                            Deactivate
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </AppLayout>
     );
 }

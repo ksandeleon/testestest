@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Services\UserService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -12,6 +13,12 @@ use Spatie\Permission\Models\Permission;
 
 class UserController extends Controller
 {
+    protected UserService $userService;
+
+    public function __construct(UserService $userService)
+    {
+        $this->userService = $userService;
+    }
     /**
      * Display a listing of users.
      */
@@ -54,16 +61,15 @@ class UserController extends Controller
             'role' => ['required', 'string', 'exists:roles,name'],
         ]);
 
-        $user = User::create([
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'password' => $validated['password'],
-        ]);
+        try {
+            $this->userService->create($validated, sendInvitation: false);
 
-        $user->assignRole($validated['role']);
-
-        return redirect()->route('users.index')
-            ->with('success', 'User created successfully.');
+            return redirect()->route('users.index')
+                ->with('success', 'User created successfully.');
+        } catch (\Exception $e) {
+            return back()->withInput()
+                ->with('error', 'Failed to create user: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -134,14 +140,15 @@ class UserController extends Controller
             'password' => ['nullable', 'string', 'min:8', 'confirmed'],
         ]);
 
-        $user->update([
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'password' => $validated['password'] ?? $user->password,
-        ]);
+        try {
+            $this->userService->update($user, $validated);
 
-        return redirect()->route('users.index')
-            ->with('success', 'User updated successfully.');
+            return redirect()->route('users.index')
+                ->with('success', 'User updated successfully.');
+        } catch (\Exception $e) {
+            return back()->withInput()
+                ->with('error', 'Failed to update user: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -151,10 +158,14 @@ class UserController extends Controller
     {
         $this->authorize('users.delete');
 
-        $user->delete();
+        try {
+            $this->userService->delete($user, force: false);
 
-        return redirect()->route('users.index')
-            ->with('success', 'User deleted successfully.');
+            return redirect()->route('users.index')
+                ->with('success', 'User deleted successfully.');
+        } catch (\Exception $e) {
+            return back()->with('error', $e->getMessage());
+        }
     }
 
     /**
@@ -165,7 +176,7 @@ class UserController extends Controller
         $this->authorize('users.restore');
 
         $user = User::withTrashed()->findOrFail($id);
-        $user->restore();
+        $this->userService->restore($user);
 
         return back()->with('success', 'User restored successfully.');
     }
@@ -178,9 +189,14 @@ class UserController extends Controller
         $this->authorize('users.force_delete');
 
         $user = User::withTrashed()->findOrFail($id);
-        $user->forceDelete();
 
-        return back()->with('success', 'User permanently deleted.');
+        try {
+            $this->userService->delete($user, force: true);
+
+            return back()->with('success', 'User permanently deleted.');
+        } catch (\Exception $e) {
+            return back()->with('error', $e->getMessage());
+        }
     }
 
     /**
@@ -274,5 +290,69 @@ class UserController extends Controller
         // Export logic will be implemented when needed
 
         return back()->with('info', 'Export functionality coming soon.');
+    }
+
+    /**
+     * Toggle user active/inactive status.
+     */
+    public function toggleStatus(User $user, Request $request): RedirectResponse
+    {
+        $this->authorize('users.update');
+
+        $validated = $request->validate([
+            'force_return_items' => ['boolean'],
+        ]);
+
+        try {
+            $this->userService->toggleStatus(
+                $user,
+                $validated['force_return_items'] ?? false
+            );
+
+            $status = $user->fresh()->is_active ? 'activated' : 'deactivated';
+
+            return back()->with('success', "User {$status} successfully.");
+        } catch (\Exception $e) {
+            return back()->with('error', $e->getMessage());
+        }
+    }
+
+    /**
+     * Deactivate user (with option to force return items).
+     */
+    public function deactivate(User $user, Request $request): RedirectResponse
+    {
+        $this->authorize('users.update');
+
+        $validated = $request->validate([
+            'force_return_items' => ['boolean'],
+        ]);
+
+        try {
+            $this->userService->deactivate(
+                $user,
+                $validated['force_return_items'] ?? false
+            );
+
+            return back()->with('success', 'User deactivated successfully.');
+        } catch (\Exception $e) {
+            return back()->with('error', $e->getMessage());
+        }
+    }
+
+    /**
+     * Activate user.
+     */
+    public function activate(User $user): RedirectResponse
+    {
+        $this->authorize('users.update');
+
+        try {
+            $this->userService->activate($user);
+
+            return back()->with('success', 'User activated successfully.');
+        } catch (\Exception $e) {
+            return back()->with('error', $e->getMessage());
+        }
     }
 }

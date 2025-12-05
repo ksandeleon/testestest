@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AssignmentController;
+use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\DisposalController;
 use App\Http\Controllers\ItemController;
@@ -31,6 +32,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('users/{user}/revoke-role', [UserController::class, 'revokeRole'])->name('users.revoke-role');
     Route::post('users/{user}/assign-permission', [UserController::class, 'assignPermission'])->name('users.assign-permission');
     Route::post('users/{user}/revoke-permission', [UserController::class, 'revokePermission'])->name('users.revoke-permission');
+    Route::post('users/{user}/toggle-status', [UserController::class, 'toggleStatus'])->name('users.toggle-status');
+    Route::post('users/{user}/deactivate', [UserController::class, 'deactivate'])->name('users.deactivate');
+    Route::post('users/{user}/activate', [UserController::class, 'activate'])->name('users.activate');
     Route::post('users/{id}/restore', [UserController::class, 'restore'])->name('users.restore');
     Route::delete('users/{id}/force-delete', [UserController::class, 'forceDelete'])->name('users.force-delete');
     Route::get('users/export', [UserController::class, 'export'])->name('users.export');
@@ -115,6 +119,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('locations/{location}/reassign', [LocationController::class, 'reassignForm'])->name('locations.reassign');
     Route::post('locations/{location}/reassign', [LocationController::class, 'reassignItems'])->name('locations.reassign-items');
     Route::resource('locations', LocationController::class);
+
+    // Activity Log Routes
+    Route::get('activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs.index');
+    Route::get('activity-logs/{activity}', [ActivityLogController::class, 'show'])->name('activity-logs.show');
+    Route::post('activity-logs/clean', [ActivityLogController::class, 'clean'])->name('activity-logs.clean');
+    Route::get('activity-logs/export', [ActivityLogController::class, 'export'])->name('activity-logs.export');
 });
 
 require __DIR__.'/settings.php';
+
