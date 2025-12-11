@@ -228,6 +228,10 @@ class RolePermissionSeeder extends Seeder
             // Activity logs full permissions
             'activity_logs.view_any', 'activity_logs.view', 'activity_logs.export', 'activity_logs.delete',
 
+            // Request/Approval permissions
+            'requests.view_any', 'requests.view', 'requests.create', 'requests.update', 'requests.delete',
+            'requests.approve', 'requests.reject',
+
             // Categories and locations
             'categories.view_any', 'categories.view', 'categories.create', 'categories.update', 'categories.delete',
             'locations.view_any', 'locations.view', 'locations.create', 'locations.update', 'locations.delete',
@@ -254,6 +258,7 @@ class RolePermissionSeeder extends Seeder
             'maintenance.view_any', 'maintenance.create', 'maintenance.schedule',
             'reports.view', 'reports.user_assignments', 'reports.item_history', 'reports.inventory_summary',
             'activity_logs.view_any',
+            'requests.view_any', 'requests.approve', 'requests.reject',
             'dashboard.view', 'dashboard.view_stats', 'dashboard.view_charts', 'dashboard.view_pending', 'dashboard.view_alerts',
         ];
 
@@ -377,6 +382,7 @@ class RolePermissionSeeder extends Seeder
             'items.view', // only their items
             'assignments.view_own',
             'returns.create', // request return
+            'requests.view', // view own requests
             'requests.create', // request new items
             'notifications.view',
             'dashboard.view', // personal dashboard only

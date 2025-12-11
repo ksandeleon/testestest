@@ -7,6 +7,7 @@ use App\Http\Controllers\DisposalController;
 use App\Http\Controllers\ItemController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\MaintenanceController;
+use App\Http\Controllers\RequestController;
 use App\Http\Controllers\ReturnController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
@@ -125,6 +126,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('activity-logs/{activity}', [ActivityLogController::class, 'show'])->name('activity-logs.show');
     Route::post('activity-logs/clean', [ActivityLogController::class, 'clean'])->name('activity-logs.clean');
     Route::get('activity-logs/export', [ActivityLogController::class, 'export'])->name('activity-logs.export');
+
+    // Request/Approval Workflow Routes
+    Route::get('requests/my-requests', [RequestController::class, 'myRequests'])->name('requests.my-requests');
+    Route::get('requests/pending-approvals', [RequestController::class, 'pendingApprovals'])->name('requests.pending-approvals');
+    Route::post('requests/{request}/submit', [RequestController::class, 'submitForReview'])->name('requests.submit');
+    Route::get('requests/{request}/review', [RequestController::class, 'review'])->name('requests.review');
+    Route::post('requests/{request}/approve', [RequestController::class, 'approve'])->name('requests.approve');
+    Route::post('requests/{request}/reject', [RequestController::class, 'reject'])->name('requests.reject');
+    Route::post('requests/{request}/request-changes', [RequestController::class, 'requestChanges'])->name('requests.request-changes');
+    Route::post('requests/{request}/resubmit', [RequestController::class, 'resubmit'])->name('requests.resubmit');
+    Route::post('requests/{request}/execute', [RequestController::class, 'execute'])->name('requests.execute');
+    Route::post('requests/{request}/cancel', [RequestController::class, 'cancel'])->name('requests.cancel');
+    Route::post('requests/{request}/comments', [RequestController::class, 'addComment'])->name('requests.add-comment');
+    Route::resource('requests', RequestController::class);
 });
 
 require __DIR__.'/settings.php';
