@@ -19,7 +19,7 @@ import { index as returnsIndex, pendingInspections } from '@/routes/returns';
 import { index as disposalsIndex, create as disposalsCreate, pending as disposalsPending } from '@/routes/disposals';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
-import { BookOpen, Folder, LayoutGrid, Package, Users, UserPlus, PackagePlus, List, Trash2, Wrench, Plus, Calendar, UserCheck, PackageOpen, ClipboardCheck, ClipboardList, Tag, MapPin, Activity } from 'lucide-react';
+import { BookOpen, Folder, LayoutGrid, Package, Users, UserPlus, PackagePlus, List, Trash2, Wrench, Plus, Calendar, UserCheck, PackageOpen, ClipboardCheck, ClipboardList, Tag, MapPin, Activity, FileText, AlertCircle } from 'lucide-react';
 import AppLogo from './app-logo';
 import { usePermissions } from '@/hooks/use-permissions';
 
@@ -156,6 +156,35 @@ export function AppSidebar() {
                     title: 'Pending Approval',
                     href: disposalsPending(),
                     icon: ClipboardCheck,
+                }] : []),
+            ],
+        }] : []),
+        // Request Management - show if user has ANY request permission
+        ...(hasAnyPermission(['requests.view', 'requests.view_any', 'requests.create', 'requests.approve']) ? [{
+            title: 'Request Management',
+            href: '#',
+            icon: FileText,
+            items: [
+                ...(hasPermission('requests.approve') ? [{
+                    title: 'Pending Approvals',
+                    href: '/requests/pending-approvals',
+                    icon: AlertCircle,
+                }] : []),
+                ...(hasPermission('requests.view_any') ? [{
+                    title: 'All Requests',
+                    href: '/requests',
+                    icon: List,
+                }] : []),
+                // Show "My Requests" for all users who can create requests
+                ...(hasPermission('requests.view') || hasPermission('requests.create') ? [{
+                    title: 'My Requests',
+                    href: '/requests/my-requests',
+                    icon: FileText,
+                }] : []),
+                ...(hasPermission('requests.create') ? [{
+                    title: 'New Request',
+                    href: '/requests/create',
+                    icon: Plus,
                 }] : []),
             ],
         }] : []),

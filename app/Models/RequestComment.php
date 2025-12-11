@@ -60,7 +60,14 @@ class RequestComment extends Model
         return LogOptions::defaults()
             ->logOnly(['comment', 'is_internal'])
             ->logOnlyDirty()
-            ->dontSubmitEmptyLogs();
+            ->dontSubmitEmptyLogs()
+            ->useLogName('request_comment')
+            ->setDescriptionForEvent(fn(string $eventName) => match($eventName) {
+                'created' => $this->is_internal ? 'Internal note added' : 'Comment added',
+                'updated' => $this->is_internal ? 'Internal note updated' : 'Comment updated',
+                'deleted' => $this->is_internal ? 'Internal note deleted' : 'Comment deleted',
+                default => "Comment {$eventName}",
+            });
     }
 
     /**

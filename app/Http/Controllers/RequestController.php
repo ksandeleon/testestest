@@ -47,32 +47,76 @@ class RequestController extends Controller
     /**
      * Display requests created by the authenticated user.
      */
-    public function myRequests(): Response
+    public function myRequests(HttpRequest $request): Response
     {
         $this->authorize('requests.view');
 
-        $requests = $this->requestService
-            ->getUserRequests(auth()->id())
-            ->paginate(20);
+        $filters = $request->only(['status', 'type', 'priority', 'search']);
+
+        $requests = \App\Models\Request::query()
+            ->where('user_id', auth()->id())
+            ->with(['user', 'reviewer', 'item.category'])
+            ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
+            ->when($filters['type'] ?? null, fn ($query, $type) => $query->where('type', $type))
+            ->when($filters['priority'] ?? null, fn ($query, $priority) => $query->where('priority', $priority))
+            ->when($filters['search'] ?? null, fn ($query, $search) =>
+                $query->where(function($q) use ($search) {
+                    $q->where('title', 'like', "%{$search}%")
+                      ->orWhere('description', 'like', "%{$search}%");
+                })
+            )
+            ->latest('created_at')
+            ->paginate(20)
+            ->withQueryString();
+
+        // Add computed properties
+        $requests->getCollection()->transform(function ($request) {
+            $request->can_edit = $request->canBeEdited();
+            $request->can_cancel = $request->canBeCancelled();
+            return $request;
+        });
 
         return Inertia::render('requests/my-requests', [
             'requests' => $requests,
+            'filters' => $filters,
         ]);
     }
 
     /**
      * Display requests awaiting review/approval.
      */
-    public function pendingApprovals(): Response
+    public function pendingApprovals(HttpRequest $request): Response
     {
         $this->authorize('requests.approve');
 
-        $requests = $this->requestService
-            ->getRequestsAwaitingReview();
+        $filters = $request->only(['type', 'priority', 'search']);
+
+        $requests = \App\Models\Request::query()
+            ->whereIn('status', ['pending', 'under_review'])
+            ->with(['user', 'item.category'])
+            ->when($filters['type'] ?? null, fn ($query, $type) => $query->where('type', $type))
+            ->when($filters['priority'] ?? null, fn ($query, $priority) => $query->where('priority', $priority))
+            ->when($filters['search'] ?? null, fn ($query, $search) =>
+                $query->where(function($q) use ($search) {
+                    $q->where('title', 'like', "%{$search}%")
+                      ->orWhere('description', 'like', "%{$search}%")
+                      ->orWhereHas('user', fn($q) => $q->where('name', 'like', "%{$search}%"));
+                })
+            )
+            ->latest('created_at')
+            ->paginate(20)
+            ->withQueryString();
+
+        $statistics = [
+            'total_pending' => \App\Models\Request::whereIn('status', ['pending', 'under_review'])->count(),
+            'high_priority' => \App\Models\Request::whereIn('status', ['pending', 'under_review'])->where('priority', 'high')->count(),
+            'urgent' => \App\Models\Request::whereIn('status', ['pending', 'under_review'])->where('priority', 'urgent')->count(),
+        ];
 
         return Inertia::render('requests/pending-approvals', [
             'requests' => $requests,
-            'highPriority' => $this->requestService->getHighPriorityRequests(),
+            'filters' => $filters,
+            'statistics' => $statistics,
         ]);
     }
 
@@ -91,9 +135,7 @@ class RequestController extends Controller
             ->get();
 
         return Inertia::render('requests/create', [
-            'items' => $availableItems,
-            'types' => Request::getTypes(),
-            'priorities' => Request::getPriorities(),
+            'available_items' => $availableItems,
         ]);
     }
 
@@ -129,9 +171,7 @@ class RequestController extends Controller
 
         return Inertia::render('requests/show', [
             'request' => $request->load(['user', 'item', 'reviewer', 'comments.user']),
-            'canEdit' => $request->canBeEdited() && $request->user_id === auth()->id(),
-            'canReview' => $request->canBeReviewed() && auth()->user()->can('requests.approve'),
-            'canCancel' => $request->canBeCancelled() && ($request->user_id === auth()->id() || auth()->user()->can('requests.delete')),
+            'can_add_internal_notes' => auth()->user()->can('requests.approve'),
         ]);
     }
 
@@ -161,9 +201,7 @@ class RequestController extends Controller
 
         return Inertia::render('requests/edit', [
             'request' => $request->load(['user', 'item']),
-            'items' => $availableItems,
-            'types' => Request::getTypes(),
-            'priorities' => Request::getPriorities(),
+            'available_items' => $availableItems,
         ]);
     }
 

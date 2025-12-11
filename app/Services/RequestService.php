@@ -48,8 +48,12 @@ class RequestService
             activity()
                 ->performedOn($request)
                 ->causedBy(auth()->user())
-                ->withProperties(['type' => $request->type, 'priority' => $request->priority])
-                ->log('Request created');
+                ->withProperties([
+                    'type' => $request->type,
+                    'priority' => $request->priority,
+                    'title' => $request->title,
+                ])
+                ->log("Created {$request->type} request: {$request->title}");
 
             return $request->load(['user', 'item']);
         });
@@ -82,7 +86,11 @@ class RequestService
             activity()
                 ->performedOn($request)
                 ->causedBy(auth()->user())
-                ->log('Request updated');
+                ->withProperties([
+                    'title' => $request->title,
+                    'changes' => $request->getDirty(),
+                ])
+                ->log("Updated request: {$request->title}");
 
             return $request->fresh(['user', 'item', 'reviewer']);
         });
@@ -104,7 +112,8 @@ class RequestService
             activity()
                 ->performedOn($request)
                 ->causedBy(auth()->user())
-                ->log('Request submitted for review');
+                ->withProperties(['title' => $request->title])
+                ->log("Submitted request for review: {$request->title}");
 
             return $request->fresh(['user', 'item', 'reviewer']);
         });
@@ -138,8 +147,13 @@ class RequestService
             activity()
                 ->performedOn($request)
                 ->causedBy($reviewer)
-                ->withProperties(['review_notes' => $data['review_notes'] ?? null])
-                ->log('Request approved');
+                ->withProperties([
+                    'title' => $request->title,
+                    'review_notes' => $data['review_notes'] ?? null,
+                    'reviewer' => $reviewer->name,
+                    'auto_executed' => $data['auto_execute'] ?? false,
+                ])
+                ->log("Approved request: {$request->title}");
 
             // Auto-execute for assignment requests
             if ($request->type === Request::TYPE_ASSIGNMENT && ($data['auto_execute'] ?? false)) {
@@ -182,8 +196,12 @@ class RequestService
             activity()
                 ->performedOn($request)
                 ->causedBy($reviewer)
-                ->withProperties(['review_notes' => $data['review_notes']])
-                ->log('Request rejected');
+                ->withProperties([
+                    'title' => $request->title,
+                    'review_notes' => $data['review_notes'],
+                    'reviewer' => $reviewer->name,
+                ])
+                ->log("Rejected request: {$request->title}");
 
             return $request->fresh(['user', 'item', 'reviewer']);
         });
@@ -221,8 +239,12 @@ class RequestService
             activity()
                 ->performedOn($request)
                 ->causedBy($reviewer)
-                ->withProperties(['review_notes' => $data['review_notes']])
-                ->log('Changes requested');
+                ->withProperties([
+                    'title' => $request->title,
+                    'review_notes' => $data['review_notes'],
+                    'reviewer' => $reviewer->name,
+                ])
+                ->log("Requested changes for: {$request->title}");
 
             return $request->fresh(['user', 'item', 'reviewer']);
         });
@@ -254,7 +276,8 @@ class RequestService
             activity()
                 ->performedOn($request)
                 ->causedBy(auth()->user())
-                ->log('Request resubmitted after changes');
+                ->withProperties(['title' => $request->title])
+                ->log("Resubmitted request after changes: {$request->title}");
 
             return $request->fresh(['user', 'item']);
         });
@@ -295,7 +318,12 @@ class RequestService
             activity()
                 ->performedOn($request)
                 ->causedBy(auth()->user())
-                ->log('Request completed');
+                ->withProperties([
+                    'title' => $request->title,
+                    'type' => $request->type,
+                    'executed' => true,
+                ])
+                ->log("Executed and completed request: {$request->title}");
 
             return $request->fresh(['user', 'item', 'reviewer']);
         });
@@ -326,8 +354,11 @@ class RequestService
             activity()
                 ->performedOn($request)
                 ->causedBy(auth()->user())
-                ->withProperties(['reason' => $reason])
-                ->log('Request cancelled');
+                ->withProperties([
+                    'title' => $request->title,
+                    'reason' => $reason,
+                ])
+                ->log("Cancelled request: {$request->title}");
 
             return $request->fresh(['user', 'item', 'reviewer']);
         });
@@ -355,8 +386,15 @@ class RequestService
             activity()
                 ->performedOn($request)
                 ->causedBy($user)
-                ->withProperties(['comment_id' => $requestComment->id, 'is_internal' => $isInternal])
-                ->log('Comment added to request');
+                ->withProperties([
+                    'comment_id' => $requestComment->id,
+                    'is_internal' => $isInternal,
+                    'title' => $request->title,
+                    'commenter' => $user->name,
+                ])
+                ->log($isInternal
+                    ? "Added internal note to request: {$request->title}"
+                    : "Added comment to request: {$request->title}");
 
             return $requestComment->load(['user']);
         });
@@ -493,7 +531,7 @@ class RequestService
     protected function executeAssignmentRequest(Request $request, array $data): void
     {
         if ($request->item_id) {
-            Assignment::create([
+            $assignment = Assignment::create([
                 'item_id' => $request->item_id,
                 'user_id' => $request->user_id,
                 'assigned_by' => $request->reviewed_by ?? auth()->id(),
@@ -503,6 +541,17 @@ class RequestService
                 'notes' => $request->description,
                 'status' => Assignment::STATUS_ACTIVE,
             ]);
+
+            // Log the assignment creation
+            activity()
+                ->performedOn($request)
+                ->causedBy(auth()->user())
+                ->withProperties([
+                    'assignment_id' => $assignment->id,
+                    'item_id' => $request->item_id,
+                    'user_id' => $request->user_id,
+                ])
+                ->log("Created assignment from request: {$request->title}");
         }
     }
 

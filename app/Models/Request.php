@@ -75,6 +75,55 @@ class Request extends Model
     ];
 
     /**
+     * The accessors to append to the model's array form.
+     *
+     * @var array<int, string>
+     */
+    protected $appends = [
+        'can_edit',
+        'can_review',
+        'can_cancel',
+    ];
+
+    /**
+     * Determine if the request can be edited by the current user.
+     */
+    public function getCanEditAttribute(): bool
+    {
+        if (!auth()->check()) {
+            return false;
+        }
+
+        return $this->canBeEdited() &&
+            ($this->user_id === auth()->id() || auth()->user()->can('requests.update'));
+    }
+
+    /**
+     * Determine if the request can be reviewed by the current user.
+     */
+    public function getCanReviewAttribute(): bool
+    {
+        if (!auth()->check()) {
+            return false;
+        }
+
+        return $this->canBeReviewed() && auth()->user()->can('requests.approve');
+    }
+
+    /**
+     * Determine if the request can be cancelled by the current user.
+     */
+    public function getCanCancelAttribute(): bool
+    {
+        if (!auth()->check()) {
+            return false;
+        }
+
+        return $this->canBeCancelled() &&
+            ($this->user_id === auth()->id() || auth()->user()->can('requests.delete'));
+    }
+
+    /**
      * Get the user who created the request.
      */
     public function user(): BelongsTo
@@ -139,7 +188,14 @@ class Request extends Model
                 'completed_at',
             ])
             ->logOnlyDirty()
-            ->dontSubmitEmptyLogs();
+            ->dontSubmitEmptyLogs()
+            ->useLogName('request')
+            ->setDescriptionForEvent(fn(string $eventName) => match($eventName) {
+                'created' => "Request created: {$this->title}",
+                'updated' => "Request updated: {$this->title}",
+                'deleted' => "Request deleted: {$this->title}",
+                default => "Request {$eventName}: {$this->title}",
+            });
     }
 
     /**
