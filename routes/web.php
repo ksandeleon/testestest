@@ -3,10 +3,12 @@
 use App\Http\Controllers\AssignmentController;
 use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DisposalController;
 use App\Http\Controllers\ItemController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\MaintenanceController;
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RequestController;
 use App\Http\Controllers\ReturnController;
 use App\Http\Controllers\UserController;
@@ -21,9 +23,12 @@ Route::get('/', function () {
 })->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('dashboard', function () {
-        return Inertia::render('dashboard');
-    })->name('dashboard');
+    // Dashboard Routes
+    Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('dashboard/statistics', [DashboardController::class, 'statistics'])->name('dashboard.statistics');
+    Route::get('dashboard/charts', [DashboardController::class, 'charts'])->name('dashboard.charts');
+    Route::get('dashboard/pending', [DashboardController::class, 'pending'])->name('dashboard.pending');
+    Route::get('dashboard/alerts', [DashboardController::class, 'alerts'])->name('dashboard.alerts');
 
     // User Management Routes
     // Custom routes before resource routes
@@ -140,6 +145,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('requests/{request}/cancel', [RequestController::class, 'cancel'])->name('requests.cancel');
     Route::post('requests/{request}/comments', [RequestController::class, 'addComment'])->name('requests.add-comment');
     Route::resource('requests', RequestController::class);
+
+    // Report Routes
+    Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
+    Route::get('reports/{reportType}', [ReportController::class, 'show'])->name('reports.show');
+    Route::post('reports/{reportType}/export', [ReportController::class, 'export'])->name('reports.export');
+    Route::get('reports/{reportType}/filters', [ReportController::class, 'filters'])->name('reports.filters');
 });
 
 require __DIR__.'/settings.php';
